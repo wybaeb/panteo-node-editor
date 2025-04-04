@@ -192,12 +192,17 @@ const panteoNodeEditor = (function() {
                     values[control.name] = control.value;
                   });
                   
+                  // Сохраняем значения в input
                   input.value = values;
                   
-                  const displayValue = Object.values(values).filter(Boolean).join(', ');
+                  // Обновляем отображение значения в контроле
+                  const displayValues = Object.values(values)
+                    .filter(Boolean)
+                    .join(', ');
+                  
                   const controlLabel = buttonEl.parentElement.previousElementSibling;
                   if (controlLabel && controlLabel.classList.contains('panteo-connector-label')) {
-                    controlLabel.textContent = input.label + (displayValue ? `: ${displayValue}` : '');
+                    controlLabel.textContent = input.label + (displayValues ? `: ${displayValues}` : '');
                   }
                   
                   document.body.removeChild(modal.element);
@@ -674,7 +679,10 @@ const panteoNodeEditor = (function() {
         y: node.y,
         title: node.title,
         icon: node.icon,
-        inputs: node.inputs,
+        inputs: node.inputs.map(input => ({
+          ...input,
+          value: input.value // Сохраняем значения input
+        })),
         outputs: node.outputs
       })),
       edges: edges.map(edge => ({
@@ -1173,24 +1181,41 @@ const panteoNodeEditor = (function() {
           console.warn(`PanteoNodeEditor: Unknown node type "${data.type}"`);
           return;
         }
+
+        // Merge saved inputs with config inputs to preserve values
+        const mergedInputs = (data.inputs || []).map(savedInput => {
+          const configInput = (nodeTypeConfig.inputs || []).find(i => i.id === savedInput.id);
+          if (configInput) {
+            return {
+              ...configInput,
+              ...savedInput,
+              control: {
+                ...configInput.control,
+                value: savedInput.value
+              }
+            };
+          }
+          return savedInput;
+        });
+
         const node = new Node(
           data.type,
           data.id,
           data.x,
           data.y,
-          data.title || nodeTypeConfig.title, // Use defaults from config
+          data.title || nodeTypeConfig.title,
           data.icon || nodeTypeConfig.icon,
-          data.inputs || nodeTypeConfig.inputs,
+          mergedInputs, // Use merged inputs instead of data.inputs
           data.outputs || nodeTypeConfig.outputs
         );
         
         nodes.push(node);
-        if (container) { // Ensure container exists before appending
-          container.appendChild(node.render()); // Render returns the element
+        if (container) {
+          container.appendChild(node.render());
         }
       });
       
-      if (ctx) renderEdges(); // Re-render edges after setting nodes
+      if (ctx) renderEdges();
       return this;
     },
     

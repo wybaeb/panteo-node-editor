@@ -3,8 +3,8 @@
     {
       "id": "node1",
       "type": "input_number",
-      "x": 155,
-      "y": 444,
+      "x": 100,
+      "y": 100,
       "title": "Number Input",
       "icon": "input",
       "inputs": [],
@@ -18,8 +18,8 @@
     {
       "id": "node2",
       "type": "filter_range",
-      "x": 429,
-      "y": 322,
+      "x": 400,
+      "y": 100,
       "title": "Range Filter",
       "icon": "filter_alt",
       "inputs": [
@@ -36,8 +36,7 @@
           "label": "Min",
           "control": {
             "type": "text",
-            "placeholder": "Min value",
-            "value": "0"
+            "placeholder": "Min value"
           }
         },
         {
@@ -45,95 +44,10 @@
           "label": "Max",
           "control": {
             "type": "text",
-            "placeholder": "Max value",
-            "value": "100"
+            "placeholder": "Max value"
           }
         }
       ],
-      "outputs": [
-        {
-          "id": "output",
-          "label": "Output"
-        }
-      ]
-    },
-    {
-      "id": "jm467lf6t",
-      "type": "output_action",
-      "x": 912,
-      "y": 502,
-      "title": "Action",
-      "icon": "play_arrow",
-      "inputs": [
-        {
-          "id": "input",
-          "label": "Input",
-          "control": {
-            "type": "modal",
-            "fields": [
-              {
-                "name": "action_type",
-                "label": "Action Type",
-                "type": "dropdown",
-                "options": [
-                  {
-                    "value": "alert",
-                    "label": "Alert"
-                  },
-                  {
-                    "value": "log",
-                    "label": "Log"
-                  },
-                  {
-                    "value": "api",
-                    "label": "API Call"
-                  }
-                ]
-              },
-              {
-                "name": "action_params",
-                "label": "Parameters",
-                "type": "textarea",
-                "placeholder": "Enter parameters as JSON"
-              }
-            ]
-          }
-        }
-      ],
-      "outputs": []
-    },
-    {
-      "id": "0ztza3gp8",
-      "type": "logic_and",
-      "x": 1177,
-      "y": 350,
-      "title": "AND Gate",
-      "icon": "call_merge",
-      "inputs": [
-        {
-          "id": "input1",
-          "label": "Input 1"
-        },
-        {
-          "id": "input2",
-          "label": "Input 2"
-        }
-      ],
-      "outputs": [
-        {
-          "id": "output",
-          "label": "Output"
-        }
-      ]
-    },
-    {
-      "id": "5latf42st",
-      "type": "input_number",
-      "x": 712,
-      "y": 63,
-      "title": "Number Input",
-      "icon": "input",
-      "inputs": [],
       "outputs": [
         {
           "id": "output",
@@ -144,8 +58,8 @@
     {
       "id": "node3",
       "type": "output_display",
-      "x": 1150,
-      "y": 161,
+      "x": 700,
+      "y": 100,
       "title": "Display",
       "icon": "visibility",
       "inputs": [
@@ -167,33 +81,74 @@
                 "value": "boolean",
                 "label": "Boolean"
               }
-            ],
-            "value": "number"
+            ]
           }
         }
       ],
       "outputs": []
     },
     {
-      "id": "rj0onv3sd",
-      "type": "input_number",
-      "x": 373,
-      "y": 132,
-      "title": "Number Input",
-      "icon": "input",
-      "inputs": [],
-      "outputs": [
+      "id": "3von7k5b4",
+      "type": "output_action",
+      "x": 375,
+      "y": 499,
+      "title": "Action",
+      "icon": "play_arrow",
+      "inputs": [
         {
-          "id": "output",
-          "label": "Output"
+          "id": "input",
+          "label": "Input",
+          "control": {
+            "type": "modal",
+            "fields": [
+              {
+                "name": "action_type",
+                "label": "Action Type",
+                "type": "dropdown",
+                "options": [
+                  {
+                    "value": "alert",
+                    "label": "Alert"
+                  },
+                  {
+                    "value": "log",
+                    "label": "Log"
+                  },
+                  {
+                    "value": "api",
+                    "label": "API Call"
+                  }
+                ]
+              },
+              {
+                "name": "action_params",
+                "label": "Parameters",
+                "type": "textarea",
+                "placeholder": "Enter parameters as JSON"
+              }
+            ],
+            "value": {
+              "text_value": "asd",
+              "number_value": "123",
+              "textarea_value": "asd",
+              "dropdown_value": "option2"
+            }
+          },
+          "value": {
+            "text_value": "asd",
+            "number_value": "123",
+            "textarea_value": "asd",
+            "dropdown_value": "option2"
+          }
         }
-      ]
+      ],
+      "outputs": []
     },
     {
-      "id": "gco7zsr4h",
+      "id": "ote89paeq",
       "type": "output_action",
-      "x": 1603,
-      "y": 421,
+      "x": 880,
+      "y": 370,
       "title": "Action",
       "icon": "play_arrow",
       "inputs": [
@@ -229,6 +184,12 @@
                 "placeholder": "Enter parameters as JSON"
               }
             ]
+          },
+          "value": {
+            "text_value": "aaa",
+            "number_value": "666",
+            "textarea_value": "aaa",
+            "dropdown_value": "option3"
           }
         }
       ],
@@ -237,38 +198,17 @@
   ],
   "edges": [
     {
-      "id": "seomrtcbl",
-      "sourceNodeId": "node2",
-      "sourceConnectorId": "output",
-      "targetNodeId": "node3",
-      "targetConnectorId": "input"
-    },
-    {
-      "id": "23ytaq1il",
+      "id": "njuotuzzi",
       "sourceNodeId": "node1",
       "sourceConnectorId": "output",
       "targetNodeId": "node2",
       "targetConnectorId": "input"
     },
     {
-      "id": "83z6l82ok",
-      "sourceNodeId": "rj0onv3sd",
+      "id": "r219c22d9",
+      "sourceNodeId": "node2",
       "sourceConnectorId": "output",
-      "targetNodeId": "0ztza3gp8",
-      "targetConnectorId": "input1"
-    },
-    {
-      "id": "r65ws964l",
-      "sourceNodeId": "5latf42st",
-      "sourceConnectorId": "output",
-      "targetNodeId": "0ztza3gp8",
-      "targetConnectorId": "input2"
-    },
-    {
-      "id": "2wz263yx2",
-      "sourceNodeId": "0ztza3gp8",
-      "sourceConnectorId": "output",
-      "targetNodeId": "gco7zsr4h",
+      "targetNodeId": "node3",
       "targetConnectorId": "input"
     }
   ]
