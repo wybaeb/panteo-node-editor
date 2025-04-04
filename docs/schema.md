@@ -63,6 +63,9 @@ Input and output connectors are represented by JSON objects with the following p
   "label": "string",
   "control": {
     // Optional control object
+  },
+  "value": {
+    // Optional value object for storing modal input values
   }
 }
 ```
@@ -83,6 +86,7 @@ Input and output connectors are represented by JSON objects with the following p
 | `id` | string | Yes | Unique identifier for the connector within the node |
 | `label` | string | Yes | Display label for the connector |
 | `control` | object | No | Control configuration for input connectors |
+| `value` | object | No | Values stored from modal inputs |
 
 ## Control Schema
 
@@ -125,6 +129,7 @@ Controls for input connectors can be of different types, each with its own schem
       "type": "string",
       "value": "string",
       "placeholder": "string",
+      "infoText": "string",
       "options": [
         {
           "value": "string",
@@ -145,6 +150,31 @@ Controls for input connectors can be of different types, each with its own schem
 | `placeholder` | string | No | Placeholder text for text inputs |
 | `options` | array | No | Array of option objects for dropdown controls |
 | `fields` | array | No | Array of field objects for modal controls |
+| `infoText` | string | No | Help text displayed below the field label |
+
+## Modal Values Schema
+
+When a modal control is used, the values entered by the user are stored in the `value` property of the input connector:
+
+```json
+{
+  "text_value": "string",
+  "number_value": "number",
+  "textarea_value": "string",
+  "dropdown_value": "string"
+}
+```
+
+### Properties
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `text_value` | string | No | Value entered in the text input field |
+| `number_value` | number | No | Value entered in the number input field |
+| `textarea_value` | string | No | Value entered in the textarea field |
+| `dropdown_value` | string | No | Value selected from the dropdown |
+
+These values are displayed in the connector label, separated by commas.
 
 ## Edge Schema
 
@@ -194,45 +224,41 @@ Here's a complete example of an editor state with two nodes connected by an edge
     },
     {
       "id": "node2",
-      "type": "filter_range",
+      "type": "output_action",
       "x": 400,
       "y": 100,
-      "title": "Range Filter",
-      "icon": "filter_alt",
+      "title": "Action",
+      "icon": "play_arrow",
       "inputs": [
         {
           "id": "input",
           "label": "Input",
           "control": {
-            "type": "text",
-            "placeholder": "Enter value"
-          }
-        },
-        {
-          "id": "min",
-          "label": "Min",
-          "control": {
-            "type": "text",
-            "value": "0",
-            "placeholder": "Min value"
-          }
-        },
-        {
-          "id": "max",
-          "label": "Max",
-          "control": {
-            "type": "text",
-            "value": "100",
-            "placeholder": "Max value"
+            "type": "modal",
+            "fields": [
+              {
+                "name": "text_value",
+                "label": "Text Input",
+                "type": "string",
+                "placeholder": "Enter text value...",
+                "infoText": "This is a simple text input field"
+              },
+              {
+                "name": "number_value",
+                "label": "Number Input",
+                "type": "number",
+                "placeholder": "0",
+                "infoText": "Enter a numeric value"
+              }
+            ]
+          },
+          "value": {
+            "text_value": "Hello",
+            "number_value": "42"
           }
         }
       ],
-      "outputs": [
-        {
-          "id": "output",
-          "label": "Output"
-        }
-      ]
+      "outputs": []
     }
   ],
   "edges": [

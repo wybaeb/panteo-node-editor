@@ -15,9 +15,19 @@ Develop a native JavaScript node-based editor component with backend/frontend in
 - **Node Management**:  
   - Add/delete/move nodes via drag-and-drop or palette.  
   - **Keyboard Support**: Delete nodes with `Delete`/`Backspace` keys.  
+  - Create, delete, and move nodes  
+  - Support for different node types with customizable inputs and outputs  
+  - Modal input support for complex data entry  
+  - Values from modal inputs displayed in connector labels  
 - **Edge Management**:  
   - Create/delete edges between node connectors.  
   - **Visual**: Smooth Bézier curves, enter connectors at 90° angles, minimize crossing nodes.  
+  - Validate connections based on node types  
+  - Visual feedback for valid and invalid connections  
+- **State Management**:  
+  - Save and load editor state  
+  - Track changes to nodes and edges  
+  - Persist modal input values  
 
 ### **2.2. Node Structure**  
 - **Header**: Title + icon (Google Material Icons [loaded from official CDN] or SVG [placeholder paths for demo]).  
@@ -25,6 +35,8 @@ Develop a native JavaScript node-based editor component with backend/frontend in
   - Input/output connectors with labels.  
   - **Dynamic Controls**: Per-connector fields:  
     - Text input / Dropdown / "…" button opening a modal.  
+  - Modal input support with multiple field types  
+  - Values displayed in connector labels  
 - **Modal Properties**:  
   - Form fields: `string`, `number`, `textarea`, `dropdown`.  
   - Each field: `label`, `infoText`, `placeholder`.  
@@ -42,6 +54,14 @@ Develop a native JavaScript node-based editor component with backend/frontend in
 - **Backend Integration**:  
   - **Frontend (Node.js)**: Loads/saves data via API or static JSON.  
   - **Backend (Node.js)**: REST API to save/retrieve JSON.  
+- **State Persistence**:  
+  - Save editor state to backend  
+  - Load editor state from backend  
+  - Handle modal input values  
+- **Validation**:  
+  - Validate node connections  
+  - Validate modal input values  
+  - Prevent invalid operations  
 
 ---
 
@@ -56,6 +76,42 @@ Develop a native JavaScript node-based editor component with backend/frontend in
 
 ### **3.2. Responsiveness**  
 - Tested on macOS (local) + Ubuntu (remote).  
+- **Layout**:  
+  - Adapt to container size  
+  - Maintain usability at different zoom levels  
+  - Support for touch devices  
+- **Performance**:  
+  - Smooth animations  
+  - Efficient rendering of large graphs  
+  - Responsive modal dialogs  
+
+### **3.3. Interaction**  
+- **Node Operations**:  
+  - Drag and drop for moving nodes  
+  - Click and drag for creating edges  
+  - Double-click for opening modal inputs  
+  - Keyboard shortcuts for common operations  
+- **Modal Inputs**:  
+  - Open on connector click  
+  - Save on button click or Enter key  
+  - Cancel on Escape key or clicking outside  
+  - Real-time validation  
+
+### **3.4. Visual Design**  
+- **Nodes**:  
+  - Clean, modern appearance  
+  - Clear visual hierarchy  
+  - Distinct input and output connectors  
+  - Modal input values displayed in connector labels  
+- **Edges**:  
+  - Smooth Bézier curves  
+  - Visual feedback for connection states  
+  - Clear indication of connection points  
+- **Modal Dialogs**:  
+  - Consistent with overall design  
+  - Clear field labels and help text  
+  - Validation feedback  
+  - Easy to use interface  
 
 ---
 
@@ -64,11 +120,39 @@ Develop a native JavaScript node-based editor component with backend/frontend in
 ### **4.1. Code Structure**  
 - **Node Classes**: Each node type as a separate JS class (e.g., `InputNode`, `LogicNode`).  
 - **SVG Icons**: Simple placeholders (e.g., `<svg><path d="..."></svg>`).  
+- **Frontend**:  
+  - **Core Components**:  
+    - Node class for managing node behavior  
+    - Edge class for managing edge behavior  
+    - Modal class for managing modal dialogs  
+    - Editor class for managing the overall editor  
+  - **State Management**:  
+    - Track node and edge state  
+    - Handle modal input values  
+    - Manage undo/redo history  
+  - **Event Handling**:  
+    - Mouse and keyboard events  
+    - Touch events for mobile devices  
+    - Custom events for state changes  
 
 ### **4.2. Testing Data**  
 - **Sample Nodes**:  
   - Categories: e.g., "Sources", "Filters".  
   - Varied fields: Mix text inputs, dropdowns, modals.  
+
+### **4.3. Backend**  
+- **API Endpoints**:  
+  - Save editor state  
+  - Load editor state  
+  - Handle modal input values  
+- **Data Storage**:  
+  - Store editor state in database  
+  - Handle modal input values  
+  - Support for versioning  
+- **Security**:  
+  - Validate input data  
+  - Sanitize output data  
+  - Handle authentication and authorization  
 
 ---
 
@@ -81,6 +165,26 @@ Develop a native JavaScript node-based editor component with backend/frontend in
 - **`.env`**: Stores secrets (e.g., `PORT=3000`).  
 - **`.gitignore`**: Excludes `node_modules`, `.env`, logs.  
 
+### **5.2. Environment Setup**  
+- **Development**:  
+  - Local development server  
+  - Hot reloading  
+  - Debug tools  
+- **Production**:  
+  - Optimized build  
+  - CDN deployment  
+  - Error tracking  
+
+### **5.3. Monitoring**  
+- **Performance**:  
+  - Track rendering performance  
+  - Monitor memory usage  
+  - Log error rates  
+- **Usage**:  
+  - Track user interactions  
+  - Monitor modal usage  
+  - Analyze error patterns  
+
 ---
 
 ## **6. Critical Additions**  
@@ -91,6 +195,31 @@ Develop a native JavaScript node-based editor component with backend/frontend in
 4. **Security**: Input validation, CORS, rate limiting (if public-facing).  
 5. **SVG Fallbacks**: Plan for broken Material Icons (e.g., show text label).  
 
+### **6.1. Modal Input Support**  
+- **Field Types**:  
+  - Text input  
+  - Number input  
+  - Textarea  
+  - Dropdown  
+- **Validation**:  
+  - Required fields  
+  - Type validation  
+  - Custom validation rules  
+- **Value Storage**:  
+  - Store values in node state  
+  - Display values in connector labels  
+  - Handle value updates  
+
+### **6.2. Value Display**  
+- **Connector Labels**:  
+  - Display modal input values  
+  - Format values for readability  
+  - Handle multiple values  
+- **Updates**:  
+  - Update labels on value changes  
+  - Handle value removal  
+  - Maintain label consistency  
+
 ---
 
 ## **7. Deliverables**  
@@ -98,3 +227,36 @@ Develop a native JavaScript node-based editor component with backend/frontend in
 2. Frontend/backend (Node.js).  
 3. Full documentation + testing setup.  
 4. Deployment scripts.  
+
+## **8. Testing**  
+
+### **8.1. Unit Tests**  
+- **Components**:  
+  - Node class  
+  - Edge class  
+  - Modal class  
+  - Editor class  
+- **State Management**:  
+  - Node state  
+  - Edge state  
+  - Modal state  
+
+### **8.2. Integration Tests**  
+- **User Interactions**:  
+  - Node operations  
+  - Edge operations  
+  - Modal operations  
+- **State Persistence**:  
+  - Save state  
+  - Load state  
+  - Handle modal values  
+
+### **8.3. End-to-End Tests**  
+- **Workflows**:  
+  - Create and connect nodes  
+  - Use modal inputs  
+  - Save and load state  
+- **Error Handling**:  
+  - Invalid operations  
+  - Network errors  
+  - Validation errors  

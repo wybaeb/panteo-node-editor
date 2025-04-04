@@ -1,62 +1,113 @@
 # API Documentation
 
+This document provides a comprehensive overview of the Panteo Node Editor API, including both frontend and backend methods.
+
 ## Frontend API
 
-The `panteoNodeEditor` object provides a comprehensive API for interacting with the node editor component.
+The frontend API is exposed through the `PanteoNodeEditor` module, which provides methods for initializing, configuring, and interacting with the editor.
 
 ### Core Methods
 
-#### `init(selector)`
-Initializes the editor in the specified DOM element.
+#### `init(container, options)`
 
-- **Parameters:**
-  - `selector` (string): CSS selector for the container element
+Initializes the editor in the specified container with the given options.
 
-- **Returns:** The panteoNodeEditor object for chaining
+**Parameters:**
+- `container` (HTMLElement): The DOM element to render the editor in
+- `options` (Object): Configuration options for the editor
+  - `width` (number): Width of the editor in pixels
+  - `height` (number): Height of the editor in pixels
+  - `backgroundColor` (string): Background color of the editor
+  - `gridSize` (number): Size of the grid in pixels
+  - `snapToGrid` (boolean): Whether to snap nodes to the grid
+  - `nodeTypes` (Object): Predefined node types to register
 
-- **Example:**
+**Returns:**
+- `Object`: The editor instance
+
+**Example:**
 ```javascript
-panteoNodeEditor.init('#editor');
-```
-
-#### `registerNodeType(type, config)`
-Registers a new node type with the specified configuration.
-
-- **Parameters:**
-  - `type` (string): Unique identifier for the node type
-  - `config` (object): Configuration object for the node type
-    - `category` (string): Category for grouping in the palette
-    - `title` (string): Display title for the node
-    - `icon` (string): Material icon name or SVG path
-    - `inputs` (array): Array of input connector objects
-    - `outputs` (array): Array of output connector objects
-
-- **Returns:** The panteoNodeEditor object for chaining
-
-- **Example:**
-```javascript
-panteoNodeEditor.registerNodeType('input_number', {
-  category: 'Sources',
-  title: 'Number Input',
-  icon: 'input',
-  inputs: [],
-  outputs: [
-    { id: 'output', label: 'Output' }
-  ]
+const editor = PanteoNodeEditor.init(document.getElementById('editor'), {
+  width: 800,
+  height: 600,
+  backgroundColor: '#f5f5f5',
+  gridSize: 20,
+  snapToGrid: true,
+  nodeTypes: {
+    input_number: {
+      title: 'Number Input',
+      icon: 'input',
+      inputs: [],
+      outputs: [
+        { id: 'output', label: 'Output' }
+      ]
+    }
+  }
 });
 ```
 
-#### `setNodes(nodeData)`
-Sets the nodes in the editor.
+#### `registerNodeType(type, config)`
 
-- **Parameters:**
-  - `nodeData` (array): Array of node objects
+Registers a new node type with the editor.
 
-- **Returns:** The panteoNodeEditor object for chaining
+**Parameters:**
+- `type` (string): The type identifier for the node
+- `config` (Object): Configuration for the node type
+  - `title` (string): Display title for the node
+  - `icon` (string): Material icon name or SVG path
+  - `inputs` (Array): Array of input connector configurations
+  - `outputs` (Array): Array of output connector configurations
 
-- **Example:**
+**Returns:**
+- `boolean`: Whether the registration was successful
+
+**Example:**
 ```javascript
-panteoNodeEditor.setNodes([
+editor.registerNodeType('output_action', {
+  title: 'Action',
+  icon: 'play_arrow',
+  inputs: [
+    {
+      id: 'input',
+      label: 'Input',
+      control: {
+        type: 'modal',
+        fields: [
+          {
+            name: 'text_value',
+            label: 'Text Input',
+            type: 'string',
+            placeholder: 'Enter text value...',
+            infoText: 'This is a simple text input field'
+          },
+          {
+            name: 'number_value',
+            label: 'Number Input',
+            type: 'number',
+            placeholder: '0',
+            infoText: 'Enter a numeric value'
+          }
+        ]
+      }
+    }
+  ],
+  outputs: []
+});
+```
+
+#### `setNodes(nodes)`
+
+Sets the nodes in the editor, replacing any existing nodes.
+
+**Parameters:**
+- `nodes` (Array): Array of node objects to set
+
+**Returns:**
+- `boolean`: Whether the operation was successful
+
+**Example:**
+```javascript
+editor.setNodes([
   {
     id: 'node1',
     type: 'input_number',
@@ -68,21 +119,61 @@ panteoNodeEditor.setNodes([
     outputs: [
       { id: 'output', label: 'Output' }
     ]
+  },
+  {
+    id: 'node2',
+    type: 'output_action',
+    x: 400,
+    y: 100,
+    title: 'Action',
+    icon: 'play_arrow',
+    inputs: [
+      {
+        id: 'input',
+        label: 'Input',
+        control: {
+          type: 'modal',
+          fields: [
+            {
+              name: 'text_value',
+              label: 'Text Input',
+              type: 'string',
+              placeholder: 'Enter text value...',
+              infoText: 'This is a simple text input field'
+            },
+            {
+              name: 'number_value',
+              label: 'Number Input',
+              type: 'number',
+              placeholder: '0',
+              infoText: 'Enter a numeric value'
+            }
+          ]
+        },
+        value: {
+          text_value: 'Hello',
+          number_value: '42'
+        }
+      }
+    ],
+    outputs: []
   }
 ]);
 ```
 
-#### `setEdges(edgeData)`
-Sets the edges in the editor.
+#### `setEdges(edges)`
 
-- **Parameters:**
-  - `edgeData` (array): Array of edge objects
+Sets the edges in the editor, replacing any existing edges.
 
-- **Returns:** The panteoNodeEditor object for chaining
+**Parameters:**
+- `edges` (Array): Array of edge objects to set
 
-- **Example:**
+**Returns:**
+- `boolean`: Whether the operation was successful
+
+**Example:**
 ```javascript
-panteoNodeEditor.setEdges([
+editor.setEdges([
   {
     id: 'edge1',
     sourceNodeId: 'node1',
@@ -94,158 +185,148 @@ panteoNodeEditor.setEdges([
 ```
 
 #### `getState()`
-Returns the current state of the editor.
 
-- **Returns:** Object containing nodes and edges arrays
+Gets the current state of the editor, including nodes and edges.
 
-- **Example:**
+**Returns:**
+- `Object`: The current editor state
+  - `nodes` (Array): Array of node objects
+  - `edges` (Array): Array of edge objects
+
+**Example:**
 ```javascript
-const state = panteoNodeEditor.getState();
-console.log(state.nodes, state.edges);
-```
-
-#### `onChangeListener(callback)`
-Sets a callback function to be called when the editor state changes.
-
-- **Parameters:**
-  - `callback` (function): Function to call with the new state
-
-- **Returns:** The panteoNodeEditor object for chaining
-
-- **Example:**
-```javascript
-panteoNodeEditor.onChangeListener(function(data) {
-  console.log('Editor state changed:', data);
-});
+const state = editor.getState();
+console.log(state.nodes);
+console.log(state.edges);
 ```
 
 #### `loadFromJSON(json)`
-Loads the editor state from a JSON object or string.
 
-- **Parameters:**
-  - `json` (object|string): Editor state as JSON object or string
+Loads the editor state from a JSON string or object.
 
-- **Returns:** The panteoNodeEditor object for chaining
+**Parameters:**
+- `json` (string|Object): JSON string or object representing the editor state
 
-- **Example:**
+**Returns:**
+- `boolean`: Whether the operation was successful
+
+**Example:**
 ```javascript
-panteoNodeEditor.loadFromJSON({
-  nodes: [...],
-  edges: [...]
-});
+const json = `{
+  "nodes": [
+    {
+      "id": "node1",
+      "type": "input_number",
+      "x": 100,
+      "y": 100,
+      "title": "Number Input",
+      "icon": "input",
+      "inputs": [],
+      "outputs": [
+        { "id": "output", "label": "Output" }
+      ]
+    }
+  ],
+  "edges": []
+}`;
+editor.loadFromJSON(json);
 ```
 
 #### `saveToJSON()`
-Returns the editor state as a JSON string.
 
-- **Returns:** JSON string representing the editor state
+Saves the current editor state to a JSON string.
 
-- **Example:**
+**Returns:**
+- `string`: JSON string representing the current editor state
+
+**Example:**
 ```javascript
-const jsonState = panteoNodeEditor.saveToJSON();
-localStorage.setItem('editorState', jsonState);
+const json = editor.saveToJSON();
+console.log(json);
+```
+
+### Modal Values
+
+When working with modal inputs, the values entered by the user are stored in the `value` property of the input connector. These values are displayed in the connector label, separated by commas.
+
+**Example:**
+```javascript
+// Get the value of a modal input
+const node = editor.getNode('node2');
+const input = node.inputs.find(input => input.id === 'input');
+console.log(input.value);
+// Output: { text_value: 'Hello', number_value: '42' }
+
+// Set the value of a modal input
+input.value = {
+  text_value: 'World',
+  number_value: '123'
+};
+editor.updateNode(node);
 ```
 
 ## Backend API
 
-The backend provides REST endpoints for saving and retrieving the editor state.
+The backend API provides endpoints for saving and retrieving the editor state.
 
 ### Endpoints
 
-#### `GET /api/editor-data`
-Retrieves the current editor state.
+#### `POST /api/editor/state`
 
-- **Response:**
-  - 200 OK: Returns the editor state as JSON
-  - 500 Internal Server Error: If an error occurs
-
-- **Example Response:**
-```json
-{
-  "nodes": [
-    {
-      "id": "node1",
-      "type": "input_number",
-      "x": 100,
-      "y": 100,
-      "title": "Number Input",
-      "icon": "input",
-      "inputs": [],
-      "outputs": [
-        { "id": "output", "label": "Output" }
-      ]
-    }
-  ],
-  "edges": [
-    {
-      "id": "edge1",
-      "sourceNodeId": "node1",
-      "sourceConnectorId": "output",
-      "targetNodeId": "node2",
-      "targetConnectorId": "input"
-    }
-  ]
-}
-```
-
-#### `POST /api/editor-data`
 Saves the editor state.
 
-- **Request Body:**
-  - JSON object containing nodes and edges arrays
-
-- **Response:**
-  - 200 OK: Returns success message
-  - 400 Bad Request: If the request body is invalid
-  - 500 Internal Server Error: If an error occurs
-
-- **Example Request:**
+**Request Body:**
 ```json
 {
   "nodes": [
-    {
-      "id": "node1",
-      "type": "input_number",
-      "x": 100,
-      "y": 100,
-      "title": "Number Input",
-      "icon": "input",
-      "inputs": [],
-      "outputs": [
-        { "id": "output", "label": "Output" }
-      ]
-    }
+    // Array of node objects
   ],
   "edges": [
-    {
-      "id": "edge1",
-      "sourceNodeId": "node1",
-      "sourceConnectorId": "output",
-      "targetNodeId": "node2",
-      "targetConnectorId": "input"
-    }
+    // Array of edge objects
   ]
 }
 ```
 
-- **Example Response:**
+**Response:**
 ```json
 {
   "success": true,
-  "message": "Editor data saved successfully"
+  "message": "Editor state saved successfully"
 }
 ```
 
-#### `GET /api/health`
-Health check endpoint.
+#### `GET /api/editor/state`
 
-- **Response:**
-  - 200 OK: Returns status message
+Retrieves the editor state.
 
-- **Example Response:**
+**Response:**
 ```json
 {
-  "status": "ok"
+  "success": true,
+  "data": {
+    "nodes": [
+      // Array of node objects
+    ],
+    "edges": [
+      // Array of edge objects
+    ]
+  }
+}
+```
+
+### Error Handling
+
+The backend API returns appropriate HTTP status codes and error messages in case of failures:
+
+- `400 Bad Request`: Invalid request body or parameters
+- `404 Not Found`: Requested resource not found
+- `500 Internal Server Error`: Server-side error
+
+**Error Response Example:**
+```json
+{
+  "success": false,
+  "error": "Invalid node type: unknown_type"
 }
 ```
 
