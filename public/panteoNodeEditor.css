@@ -16,6 +16,7 @@
   --panteo-connector-input: #3498DB;
   --panteo-connector-output: #E74C3C;
   --panteo-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  --panteo-brand-gradient: linear-gradient(90deg, rgba(246, 60, 64, 0.8) 0%, rgba(102, 82, 227, 0.8) 100%);
 }
 
 .panteo-node-editor {
@@ -59,7 +60,7 @@
   display: flex;
   align-items: center;
   padding: 12px 16px;
-  background: var(--panteo-gradient-red);
+  background: var(--panteo-brand-gradient);
   color: var(--panteo-text-light);
   font-weight: 600;
   cursor: move;
@@ -90,6 +91,16 @@
   align-items: center;
   position: relative;
   padding: 4px 0;
+  min-height: 24px;
+}
+
+.panteo-connector-input {
+  padding-left: 0;
+  margin-left: -13px;
+}
+
+.panteo-connector-output {
+  padding-right: 0;
 }
 
 .panteo-connector-point {
@@ -108,7 +119,7 @@
 }
 
 .panteo-connector-input .panteo-connector-point {
-  left: -6px;
+  left: -10px;
   background-color: var(--panteo-connector-input);
 }
 
@@ -122,19 +133,22 @@
   transform: translateY(-50%) scale(1.2);
 }
 
-.panteo-connector-input .panteo-connector-label {
-  padding-left: 10px;
-}
-
-.panteo-connector-output .panteo-connector-label {
-  padding-right: 10px;
-  text-align: right;
-}
-
 .panteo-connector-label {
   flex: 1;
   font-size: 14px;
   color: var(--panteo-text-primary);
+  padding: 0 8px;
+  text-align: left;
+  pointer-events: none;
+}
+
+.panteo-connector-input .panteo-connector-label {
+  padding-left: 4px;
+}
+
+.panteo-connector-output .panteo-connector-label {
+  text-align: right;
+  padding-right: 16px;
 }
 
 .panteo-connector-control {
@@ -255,7 +269,8 @@
   border-radius: 12px;
   box-shadow: var(--panteo-shadow);
   width: 100%;
-  max-width: 400px;
+  max-width: 500px;
+  margin: 20px;
 }
 
 .panteo-modal-header {
@@ -264,33 +279,46 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  background: var(--panteo-brand-gradient);
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
 }
 
 .panteo-modal-title {
   font-weight: 600;
   font-size: 18px;
-  color: var(--panteo-text-primary);
+  color: white;
 }
 
 .panteo-modal-close {
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--panteo-text-secondary);
-  font-size: 20px;
+  color: white;
+  font-size: 24px;
+  padding: 0;
+  line-height: 1;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.panteo-modal-close:hover {
+  opacity: 1;
 }
 
 .panteo-modal-body {
   padding: 20px;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
 }
 
 .panteo-form-group {
-  margin-bottom: 15px;
+  margin-bottom: 20px;
 }
 
 .panteo-form-label {
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: 8px;
   font-weight: 500;
   color: var(--panteo-text-primary);
 }
@@ -298,50 +326,83 @@
 .panteo-form-info {
   font-size: 12px;
   color: var(--panteo-text-secondary);
-  margin-top: 2px;
+  margin-bottom: 8px;
 }
 
 .panteo-form-control {
   width: 100%;
-  padding: 8px 12px;
-  font-family: 'Inter', sans-serif;
+  padding: 10px 12px;
+  font-family: inherit;
   font-size: 14px;
   border: 1px solid var(--panteo-node-border);
-  border-radius: 4px;
+  border-radius: 6px;
+  background-color: white;
+  transition: all 0.2s;
+  box-sizing: border-box;
 }
 
 .panteo-form-control:focus {
   outline: none;
   border-color: #6652E3;
+  box-shadow: 0 0 0 3px rgba(102, 82, 227, 0.1);
+}
+
+.panteo-form-control::placeholder {
+  color: #A0AEC0;
+}
+
+textarea.panteo-form-control {
+  min-height: 100px;
+  resize: vertical;
+}
+
+select.panteo-form-control {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 40px;
 }
 
 .panteo-modal-footer {
-  padding: 15px 20px;
+  padding: 16px 20px;
   border-top: 1px solid var(--panteo-node-border);
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
+  background-color: #f8f9fa;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
 }
 
 .panteo-btn {
-  font-family: 'Inter', sans-serif;
+  font-family: inherit;
   font-size: 14px;
   font-weight: 500;
-  padding: 8px 16px;
+  padding: 10px 20px;
   border-radius: 6px;
   border: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s;
 }
 
 .panteo-btn-primary {
-  background: var(--panteo-gradient-blue);
+  background: var(--panteo-brand-gradient);
   color: white;
 }
 
+.panteo-btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
 .panteo-btn-secondary {
-  background-color: #BDC3C7;
+  background-color: #E2E8F0;
   color: var(--panteo-text-primary);
+}
+
+.panteo-btn-secondary:hover {
+  background-color: #CBD5E0;
 }
 
 .panteo-node.selected {

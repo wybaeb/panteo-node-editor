@@ -143,6 +143,59 @@ const panteoNodeEditor = (function() {
               buttonEl.innerHTML = '&hellip;';
               buttonEl.dataset.nodeId = this.id;
               buttonEl.dataset.connectorId = input.id;
+              buttonEl.addEventListener('click', () => {
+                const modal = createModal('Edit Values', [
+                  {
+                    type: 'string',
+                    name: 'text_value',
+                    label: 'Text Input',
+                    value: input.value?.text || '',
+                    placeholder: 'Enter text value...',
+                    infoText: 'This is a simple text input field'
+                  },
+                  {
+                    type: 'number',
+                    name: 'number_value',
+                    label: 'Number Input',
+                    value: input.value?.number || '',
+                    placeholder: '0',
+                    infoText: 'Enter a numeric value'
+                  },
+                  {
+                    type: 'textarea',
+                    name: 'textarea_value',
+                    label: 'Text Area',
+                    value: input.value?.textarea || '',
+                    placeholder: 'Enter multiline text...',
+                    infoText: 'This field supports multiple lines of text'
+                  },
+                  {
+                    type: 'dropdown',
+                    name: 'dropdown_value',
+                    label: 'Dropdown Select',
+                    value: input.value?.dropdown || '',
+                    infoText: 'Select one option from the list',
+                    options: [
+                      { value: 'option1', label: 'Option 1' },
+                      { value: 'option2', label: 'Option 2' },
+                      { value: 'option3', label: 'Option 3' }
+                    ]
+                  }
+                ]);
+                document.body.appendChild(modal.element);
+                
+                modal.submitButton.addEventListener('click', () => {
+                  const formControls = modal.element.querySelectorAll('.panteo-form-control');
+                  const values = Array.from(formControls).reduce((acc, control) => {
+                    acc[control.name] = control.value;
+                    return acc;
+                  }, {});
+                  
+                  input.value = values;
+                  document.body.removeChild(modal.element);
+                  notifyChange();
+                });
+              });
               control.appendChild(buttonEl);
             }
             
