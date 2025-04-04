@@ -88,10 +88,67 @@
       "outputs": []
     },
     {
+      "id": "ote89paeq",
+      "type": "output_action",
+      "x": 880,
+      "y": 370,
+      "title": "Action",
+      "icon": "play_arrow",
+      "inputs": [
+        {
+          "id": "input",
+          "label": "Input",
+          "control": {
+            "type": "modal",
+            "fields": [
+              {
+                "name": "action_type",
+                "label": "Action Type",
+                "type": "dropdown",
+                "options": [
+                  {
+                    "value": "alert",
+                    "label": "Alert"
+                  },
+                  {
+                    "value": "log",
+                    "label": "Log"
+                  },
+                  {
+                    "value": "api",
+                    "label": "API Call"
+                  }
+                ]
+              },
+              {
+                "name": "action_params",
+                "label": "Parameters",
+                "type": "textarea",
+                "placeholder": "Enter parameters as JSON"
+              }
+            ],
+            "value": {
+              "text_value": "aaa",
+              "number_value": "666",
+              "textarea_value": "aaa",
+              "dropdown_value": "option3"
+            }
+          },
+          "value": {
+            "text_value": "bbbb",
+            "number_value": "666",
+            "textarea_value": "aaa",
+            "dropdown_value": "option3"
+          }
+        }
+      ],
+      "outputs": []
+    },
+    {
       "id": "3von7k5b4",
       "type": "output_action",
-      "x": 375,
-      "y": 499,
+      "x": 591,
+      "y": 548,
       "title": "Action",
       "icon": "play_arrow",
       "inputs": [
@@ -145,70 +202,63 @@
       "outputs": []
     },
     {
-      "id": "ote89paeq",
-      "type": "output_action",
-      "x": 880,
-      "y": 370,
-      "title": "Action",
-      "icon": "play_arrow",
-      "inputs": [
+      "id": "wm8u9q0x4",
+      "type": "input_number",
+      "x": 329,
+      "y": 440,
+      "title": "Number Input",
+      "icon": "input",
+      "inputs": [],
+      "outputs": [
         {
-          "id": "input",
-          "label": "Input",
-          "control": {
-            "type": "modal",
-            "fields": [
-              {
-                "name": "action_type",
-                "label": "Action Type",
-                "type": "dropdown",
-                "options": [
-                  {
-                    "value": "alert",
-                    "label": "Alert"
-                  },
-                  {
-                    "value": "log",
-                    "label": "Log"
-                  },
-                  {
-                    "value": "api",
-                    "label": "API Call"
-                  }
-                ]
-              },
-              {
-                "name": "action_params",
-                "label": "Parameters",
-                "type": "textarea",
-                "placeholder": "Enter parameters as JSON"
-              }
-            ]
-          },
-          "value": {
-            "text_value": "aaa",
-            "number_value": "666",
-            "textarea_value": "aaa",
-            "dropdown_value": "option3"
-          }
+          "id": "output",
+          "label": "Output"
         }
-      ],
-      "outputs": []
+      ]
+    },
+    {
+      "id": "etg8rkru5",
+      "type": "input_text",
+      "x": 615,
+      "y": 410,
+      "title": "Text Input",
+      "icon": "text_fields",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "output",
+          "label": "Output"
+        }
+      ]
     }
   ],
   "edges": [
     {
-      "id": "njuotuzzi",
+      "id": "atx0w0pmn",
       "sourceNodeId": "node1",
       "sourceConnectorId": "output",
       "targetNodeId": "node2",
       "targetConnectorId": "input"
     },
     {
-      "id": "r219c22d9",
+      "id": "megeslaya",
       "sourceNodeId": "node2",
       "sourceConnectorId": "output",
       "targetNodeId": "node3",
+      "targetConnectorId": "input"
+    },
+    {
+      "id": "j4wszlymr",
+      "sourceNodeId": "wm8u9q0x4",
+      "sourceConnectorId": "output",
+      "targetNodeId": "3von7k5b4",
+      "targetConnectorId": "input"
+    },
+    {
+      "id": "39d9jx4h9",
+      "sourceNodeId": "etg8rkru5",
+      "sourceConnectorId": "output",
+      "targetNodeId": "ote89paeq",
       "targetConnectorId": "input"
     }
   ]

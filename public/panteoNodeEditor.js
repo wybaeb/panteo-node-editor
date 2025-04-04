@@ -112,7 +112,15 @@ const panteoNodeEditor = (function() {
           // Add label
           const label = document.createElement('div');
           label.className = 'panteo-connector-label';
-          label.textContent = input.label;
+          
+          // Display saved values for modal inputs
+          if (input.control?.type === 'modal' && input.value) {
+            const values = Object.values(input.value).filter(Boolean);
+            label.textContent = input.label + (values.length ? `: ${values.join(', ')}` : '');
+          } else {
+            label.textContent = input.label;
+          }
+          
           connector.appendChild(label);
           
           // Add control if specified
