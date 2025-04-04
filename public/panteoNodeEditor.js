@@ -277,8 +277,8 @@ const panteoNodeEditor = (function() {
         const rect = connectorPoint.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
         const result = {
-          x: rect.left + rect.width / 2 - containerRect.left,
-          y: rect.top + rect.height / 2 - containerRect.top
+          x: rect.left + rect.width / 2 - containerRect.left + container.scrollLeft,
+          y: rect.top + rect.height / 2 - containerRect.top + container.scrollTop
         };
         console.log(`  > Found connector point, position:`, {x: result.x, y: result.y});
         return result;
@@ -346,10 +346,9 @@ const panteoNodeEditor = (function() {
     if (!container) return { x: 0, y: 0 };
     const rect = container.getBoundingClientRect();
     const pos = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
+      x: e.clientX - rect.left + container.scrollLeft,
+      y: e.clientY - rect.top + container.scrollTop
     };
-    // console.log('Mouse Position:', pos); // Optional: very verbose
     return pos;
   }
   
@@ -375,30 +374,30 @@ const panteoNodeEditor = (function() {
     console.log(`Finding connector at (${x}, ${y}) relative to container`);
     if (!container) return null;
     const containerRect = container.getBoundingClientRect();
-    const clientX = x + containerRect.left;
-    const clientY = y + containerRect.top;
+    const clientX = x - container.scrollLeft + containerRect.left;
+    const clientY = y - container.scrollTop + containerRect.top;
     console.log(`  > Client coords: (${clientX}, ${clientY})`);
 
     const elements = document.elementsFromPoint(clientX, clientY);
     console.log(`  > Elements at point:`, elements);
     for (let i = 0; i < elements.length; i++) {
-        const el = elements[i];
-        if (el.classList.contains('panteo-connector-point')) {
-            const nodeId = el.dataset.nodeId;
-            const connectorId = el.dataset.connectorId;
-            const type = el.dataset.connectorType;
-            console.log(`    * Found potential connector element:`, el, `NodeID: ${nodeId}, ConnID: ${connectorId}, Type: ${type}`);
+      const el = elements[i];
+      if (el.classList.contains('panteo-connector-point')) {
+        const nodeId = el.dataset.nodeId;
+        const connectorId = el.dataset.connectorId;
+        const type = el.dataset.connectorType;
+        console.log(`    * Found potential connector element:`, el, `NodeID: ${nodeId}, ConnID: ${connectorId}, Type: ${type}`);
 
-            const node = nodes.find(n => n.id === nodeId);
-            if (node) {
-                console.log(`  > Confirmed connector: Node ${nodeId}, Connector ${connectorId} (${type})`);
-                return { nodeId, connectorId, type };
-            } else {
-                 console.log(`    * Connector node ${nodeId} not found in current nodes list.`);
-            }
+        const node = nodes.find(n => n.id === nodeId);
+        if (node) {
+          console.log(`  > Confirmed connector: Node ${nodeId}, Connector ${connectorId} (${type})`);
+          return { nodeId, connectorId, type };
+        } else {
+          console.log(`    * Connector node ${nodeId} not found in current nodes list.`);
         }
+      }
     }
-     console.log(`  > No connector found at this point.`);
+    console.log(`  > No connector found at this point.`);
     return null;
   }
   
@@ -723,6 +722,32 @@ const panteoNodeEditor = (function() {
     renderEdges();
   }
   
+  // Add this function to calculate required canvas size
+  function calculateRequiredCanvasSize() {
+    if (!nodes.length) {
+      return {
+        width: container.offsetWidth,
+        height: container.offsetHeight
+      };
+    }
+
+    const padding = 100; // Padding around nodes
+    let maxX = 0;
+    let maxY = 0;
+
+    nodes.forEach(node => {
+      const nodeRight = node.x + node.width;
+      const nodeBottom = node.y + node.height;
+      maxX = Math.max(maxX, nodeRight);
+      maxY = Math.max(maxY, nodeBottom);
+    });
+
+    return {
+      width: Math.max(maxX + padding, container.offsetWidth),
+      height: Math.max(maxY + padding, container.offsetHeight)
+    };
+  }
+  
   // Event handlers
   function handleMouseDown(e) {
     console.log(`--- Mouse Down ---`);
@@ -851,38 +876,39 @@ const panteoNodeEditor = (function() {
   }
   
   function handleMouseMove(e) {
-    // console.log('--- Mouse Move ---'); // Very verbose
     const pos = getMousePosition(e);
 
     // Handle node dragging
     if (draggedNode) {
-        // console.log(`  > Dragging node ${draggedNode.id}`); // Verbose
         const newX = pos.x - dragOffset.x;
         const newY = pos.y - dragOffset.y;
 
-        // Boundary check using node's stored height/width
-        const nodeWidth = draggedNode.width;
-        const nodeHeight = draggedNode.height;
-        const containerWidth = container.offsetWidth;
-        const containerHeight = container.offsetHeight;
-
-        draggedNode.x = Math.max(0, Math.min(containerWidth - nodeWidth, newX));
-        draggedNode.y = Math.max(0, Math.min(containerHeight - nodeHeight, newY));
-        // console.log(`    * New pos: (${draggedNode.x}, ${draggedNode.y})`); // Verbose
+        // Allow nodes to be dragged beyond visible area
+        draggedNode.x = Math.max(0, newX);
+        draggedNode.y = Math.max(0, newY);
 
         draggedNode.element.style.left = `${draggedNode.x}px`;
         draggedNode.element.style.top = `${draggedNode.y}px`;
 
-        renderEdges(); // Update edges connected to the dragged node
-        e.preventDefault(); // Prevent text selection, etc.
-        return; // Don't handle edge creation if dragging node
+        // Update canvas size based on actual content
+        if (canvas) {
+          const { width, height } = calculateRequiredCanvasSize();
+          canvas.width = width;
+          canvas.height = height;
+          canvas.style.width = `${width}px`;
+          canvas.style.height = `${height}px`;
+        }
+
+        renderEdges();
+        e.preventDefault();
+        return;
     }
 
     // Handle edge creation drag
     if (tempEdge) {
         tempEdge.targetPos = pos;
-        renderEdges(); // Redraw the temporary edge
-        e.preventDefault(); // Prevent text selection, etc.
+        renderEdges();
+        e.preventDefault();
     }
   }
   
@@ -1103,8 +1129,7 @@ const panteoNodeEditor = (function() {
       
       // Clear container and set base class
       container.innerHTML = '';
-      container.className = 'panteo-node-editor'; // Reset classes
-      // Ensure container has position:relative or similar for absolute positioning of nodes/canvas
+      container.className = 'panteo-node-editor';
       if (getComputedStyle(container).position === 'static') {
         container.style.position = 'relative';
       }
@@ -1112,9 +1137,13 @@ const panteoNodeEditor = (function() {
       // Create canvas for edges
       canvas = document.createElement('canvas');
       canvas.className = 'panteo-canvas';
-      // Set initial size - might need adjustment if container size changes later
+      
+      // Set initial canvas size to container size
       canvas.width = container.offsetWidth;
       canvas.height = container.offsetHeight;
+      canvas.style.width = `${canvas.width}px`;
+      canvas.style.height = `${canvas.height}px`;
+      
       container.appendChild(canvas);
       ctx = canvas.getContext('2d');
       
@@ -1155,12 +1184,15 @@ const panteoNodeEditor = (function() {
       // mousemove and mouseup are added dynamically to document now
       window.addEventListener('keydown', handleKeyDown); // Keydown listener
       
-      // Handle window resize (or use ResizeObserver for container)
+      // Update window resize handler
       window.addEventListener('resize', () => {
         if (canvas && container) {
-          canvas.width = container.offsetWidth;
-          canvas.height = container.offsetHeight;
-          renderEdges(); // Redraw edges on resize
+          const { width, height } = calculateRequiredCanvasSize();
+          canvas.width = width;
+          canvas.height = height;
+          canvas.style.width = `${width}px`;
+          canvas.style.height = `${height}px`;
+          renderEdges();
         }
       });
       
@@ -1213,7 +1245,7 @@ const panteoNodeEditor = (function() {
           data.y,
           data.title || nodeTypeConfig.title,
           data.icon || nodeTypeConfig.icon,
-          mergedInputs, // Use merged inputs instead of data.inputs
+          mergedInputs,
           data.outputs || nodeTypeConfig.outputs
         );
         
@@ -1222,6 +1254,15 @@ const panteoNodeEditor = (function() {
           container.appendChild(node.render());
         }
       });
+      
+      // Update canvas size based on loaded nodes
+      if (canvas && container) {
+        const { width, height } = calculateRequiredCanvasSize();
+        canvas.width = width;
+        canvas.height = height;
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+      }
       
       if (ctx) renderEdges();
       return this;

@@ -30,7 +30,7 @@
     linear-gradient(90deg, var(--panteo-grid-color) 1px, transparent 1px);
   background-size: 20px 20px;
   position: relative;
-  overflow: hidden;
+  overflow: auto;
   user-select: none;
 }
 
@@ -42,6 +42,8 @@
   left: 0;
   pointer-events: none;
   z-index: 1;
+  min-width: 100%;
+  min-height: 100%;
 }
 
 .panteo-node {
