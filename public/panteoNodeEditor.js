@@ -116,9 +116,22 @@ const panteoNodeEditor = (function() {
           // Display saved values for modal inputs
           if (input.control?.type === 'modal' && input.value) {
             const values = Object.values(input.value).filter(Boolean);
-            label.textContent = input.label + (values.length ? `: ${values.join(', ')}` : '');
+            const displayText = values.length ? `: ${values.join(', ')}` : '';
+            const fullText = input.label + displayText;
+            
+            // Set the text and title
+            label.textContent = fullText;
+            label.title = fullText;
+            
+            // Add a small delay to check if text is multiline
+            requestAnimationFrame(() => {
+              if (label.scrollHeight > label.clientHeight || label.offsetHeight > 24) {
+                label.style.paddingTop = '0';
+              }
+            });
           } else {
             label.textContent = input.label;
+            label.title = input.label;
           }
           
           connector.appendChild(label);
