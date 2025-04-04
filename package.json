@@ -1,0 +1,29 @@
+{
+  "name": "panteo-node-editor",
+  "version": "1.0.0",
+  "description": "A native JavaScript node-based editor component with backend/frontend integration",
+  "main": "src/backend/server.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "start": "node src/backend/server.js",
+    "dev": "nodemon src/backend/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "node-editor",
+    "javascript",
+    "panteo"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "terser": "^5.39.0"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0"
+  }
+}

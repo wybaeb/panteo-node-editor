@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panteo Node Editor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="panteoNodeEditor.css">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            padding: 15px 20px;
+            background: linear-gradient(90deg, #F63C40 0%, #6652E3 100%);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+        
+        .editor-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        .controls {
+            padding: 10px 20px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+            background-color: #e9ecef;
+            color: #212529;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(90deg, #F63C40 0%, #6652E3 100%);
+            color: white;
+        }
+        
+        .json-output {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 200px;
+            background-color: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            overflow: auto;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Panteo Node Editor</h1>
+        </div>
+        
+        <div class="controls">
+            <button id="save-btn" class="btn btn-primary">Save</button>
+            <button id="load-btn" class="btn">Load</button>
+            <button id="view-json-btn" class="btn">View JSON</button>
+        </div>
+        
+        <div id="editor" class="editor-container"></div>
+        
+        <div id="json-output" class="json-output"></div>
+    </div>
+    
+    <script src="panteoNodeEditor.js"></script>
+    <script>
+        // Sample node types
+        const nodeTypes = {
+            // Sources category
+            'input_number': {
+                category: 'Sources',
+                title: 'Number Input',
+                icon: 'input',
+                inputs: [],
+                outputs: [
+                    { id: 'output', label: 'Output' }
+                ]
+            },
+            'input_text': {
+                category: 'Sources',
+                title: 'Text Input',
+                icon: 'text_fields',
+                inputs: [],
+                outputs: [
+                    { id: 'output', label: 'Output' }
+                ]
+            },
+            
+            // Filters category
+            'filter_range': {
+                category: 'Filters',
+                title: 'Range Filter',
+                icon: 'filter_alt',
+                inputs: [
+                    { 
+                        id: 'input', 
+                        label: 'Input',
+                        control: {
+                            type: 'text',
+                            placeholder: 'Enter value'
+                        }
+                    },
+                    { 
+                        id: 'min', 
+                        label: 'Min',
+                        control: {
+                            type: 'text',
+                            placeholder: 'Min value'
+                        }
+                    },
+                    { 
+                        id: 'max', 
+                        label: 'Max',
+                        control: {
+                            type: 'text',
+                            placeholder: 'Max value'
+                        }
+                    }
+                ],
+                outputs: [
+                    { id: 'output', label: 'Output' }
+                ]
+            },
+            
+            // Logic category
+            'logic_and': {
+                category: 'Logic',
+                title: 'AND Gate',
+                icon: 'call_merge',
+                inputs: [
+                    { id: 'input1', label: 'Input 1' },
+                    { id: 'input2', label: 'Input 2' }
+                ],
+                outputs: [
+                    { id: 'output', label: 'Output' }
+                ]
+            },
+            'logic_or': {
+                category: 'Logic',
+                title: 'OR Gate',
+                icon: 'call_split',
+                inputs: [
+                    { id: 'input1', label: 'Input 1' },
+                    { id: 'input2', label: 'Input 2' }
+                ],
+                outputs: [
+                    { id: 'output', label: 'Output' }
+                ]
+            },
+            
+            // Output category
+            'output_display': {
+                category: 'Outputs',
+                title: 'Display',
+                icon: 'visibility',
+                inputs: [
+                    { 
+                        id: 'input', 
+                        label: 'Input',
+                        control: {
+                            type: 'dropdown',
+                            options: [
+                                { value: 'text', label: 'Text' },
+                                { value: 'number', label: 'Number' },
+                                { value: 'boolean', label: 'Boolean' }
+                            ]
+                        }
+                    }
+                ],
+                outputs: []
+            },
+            'output_action': {
+                category: 'Outputs',
+                title: 'Action',
+                icon: 'play_arrow',
+                inputs: [
+                    { 
+                        id: 'input', 
+                        label: 'Input',
+                        control: {
+                            type: 'modal',
+                            fields: [
+                                {
+                                    name: 'action_type',
+                                    label: 'Action Type',
+                                    type: 'dropdown',
+                                    options: [
+                                        { value: 'alert', label: 'Alert' },
+                                        { value: 'log', label: 'Log' },
+                                        { value: 'api', label: 'API Call' }
+                                    ]
+                                },
+                                {
+                                    name: 'action_params',
+                                    label: 'Parameters',
+                                    type: 'textarea',
+                                    placeholder: 'Enter parameters as JSON'
+                                }
+                            ]
+                        }
+                    }
+                ],
+                outputs: []
+            }
+        };
+        
+        // Initialize editor
+        document.addEventListener('DOMContentLoaded', function() {
+            // Register node types
+            Object.keys(nodeTypes).forEach(type => {
+                panteoNodeEditor.registerNodeType(type, nodeTypes[type]);
+            });
+            
+            // Initialize editor
+            panteoNodeEditor.init('#editor');
+            
+            // Set up onChange event
+            panteoNodeEditor.onChangeListener(function(data) {
+                console.log('Editor state changed:', data);
+                document.getElementById('json-output').textContent = JSON.stringify(data, null, 2);
+            });
+            
+            // Add sample nodes
+            const sampleData = {
+                nodes: [
+                    {
+                        id: 'node1',
+                        type: 'input_number',
+                        x: 100,
+                        y: 100,
+                        title: 'Number Input',
+                        icon: 'input',
+                        inputs: [],
+                        outputs: [
+                            { id: 'output', label: 'Output' }
+                        ]
+                    },
+                    {
+                        id: 'node2',
+                        type: 'filter_range',
+                        x: 400,
+                        y: 100,
+                        title: 'Range Filter',
+                        icon: 'filter_alt',
+                        inputs: [
+                            { 
+                                id: 'input', 
+                                label: 'Input',
+                                control: {
+                                    type: 'text',
+                                    placeholder: 'Enter value'
+                                }
+                            },
+                            { 
+                                id: 'min', 
+                                label: 'Min',
+                                control: {
+                                    type: 'text',
+                                    placeholder: 'Min value',
+                                    value: '0'
+                                }
+                            },
+                            { 
+                                id: 'max', 
+                                label: 'Max',
+                                control: {
+                                    type: 'text',
+                                    placeholder: 'Max value',
+                                    value: '100'
+                                }
+                            }
+                        ],
+                        outputs: [
+                            { id: 'output', label: 'Output' }
+                        ]
+                    },
+                    {
+                        id: 'node3',
+                        type: 'output_display',
+                        x: 700,
+                        y: 100,
+                        title: 'Display',
+                        icon: 'visibility',
+                        inputs: [
+                            { 
+                                id: 'input', 
+                                label: 'Input',
+                                control: {
+                                    type: 'dropdown',
+                                    options: [
+                                        { value: 'text', label: 'Text' },
+                                        { value: 'number', label: 'Number' },
+                                        { value: 'boolean', label: 'Boolean' }
+                                    ],
+                                    value: 'number'
+                                }
+                            }
+                        ],
+                        outputs: []
+                    }
+                ],
+                edges: [
+                    {
+                        id: 'edge1',
+                        sourceNodeId: 'node1',
+                        sourceConnectorId: 'output',
+                        targetNodeId: 'node2',
+                        targetConnectorId: 'input'
+                    },
+                    {
+                        id: 'edge2',
+                        sourceNodeId: 'node2',
+                        sourceConnectorId: 'output',
+                        targetNodeId: 'node3',
+                        targetConnectorId: 'input'
+                    }
+                ]
+            };
+            
+            panteoNodeEditor.loadFromJSON(sampleData);
+            
+            // Set up buttons
+            document.getElementById('save-btn').addEventListener('click', function() {
+                const data = panteoNodeEditor.saveToJSON();
+                
+                // In a real application, this would send data to the server
+                fetch('/api/editor-data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: data
+                })
+                .then(response => response.json())
+                .then(result => {
+                    console.log('Save result:', result);
+                    alert('Editor data saved successfully!');
+                })
+                .catch(error => {
+                    console.error('Save error:', error);
+                    alert('Failed to save editor data.');
+                });
+            });
+            
+            document.getElementById('load-btn').addEventListener('click', function() {
+                // In a real application, this would fetch data from the server
+                fetch('/api/editor-data')
+                .then(response => response.json())
+                .then(data => {
+                    panteoNodeEditor.loadFromJSON(data);
+                    console.log('Editor data loaded successfully!');
+                })
+                .catch(error => {
+                    console.error('Load error:', error);
+                    alert('Failed to load editor data.');
+                });
+            });
+            
+            document.getElementById('view-json-btn').addEventListener('click', function() {
+                const jsonOutput = document.getElementById('json-output');
+                if (jsonOutput.style.display === 'none' || !jsonOutput.style.display) {
+                    jsonOutput.style.display = 'block';
+                    jsonOutput.textContent = JSON.stringify(panteoNodeEditor.getState(), null, 2);
+                } else {
+                    jsonOutput.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

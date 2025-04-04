@@ -1,0 +1,110 @@
+{
+  "nodes": [
+    {
+      "id": "node1",
+      "type": "input_number",
+      "x": 100,
+      "y": 100,
+      "title": "Number Input",
+      "icon": "input",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "output",
+          "label": "Output"
+        }
+      ]
+    },
+    {
+      "id": "node2",
+      "type": "filter_range",
+      "x": 400,
+      "y": 100,
+      "title": "Range Filter",
+      "icon": "filter_alt",
+      "inputs": [
+        {
+          "id": "input",
+          "label": "Input",
+          "control": {
+            "type": "text",
+            "placeholder": "Enter value"
+          }
+        },
+        {
+          "id": "min",
+          "label": "Min",
+          "control": {
+            "type": "text",
+            "placeholder": "Min value",
+            "value": "0"
+          }
+        },
+        {
+          "id": "max",
+          "label": "Max",
+          "control": {
+            "type": "text",
+            "placeholder": "Max value",
+            "value": "100"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "output",
+          "label": "Output"
+        }
+      ]
+    },
+    {
+      "id": "node3",
+      "type": "output_display",
+      "x": 700,
+      "y": 100,
+      "title": "Display",
+      "icon": "visibility",
+      "inputs": [
+        {
+          "id": "input",
+          "label": "Input",
+          "control": {
+            "type": "dropdown",
+            "options": [
+              {
+                "value": "text",
+                "label": "Text"
+              },
+              {
+                "value": "number",
+                "label": "Number"
+              },
+              {
+                "value": "boolean",
+                "label": "Boolean"
+              }
+            ],
+            "value": "number"
+          }
+        }
+      ],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    {
+      "id": "a0i4mtxed",
+      "sourceNodeId": "node1",
+      "sourceConnectorId": "output",
+      "targetNodeId": "node2",
+      "targetConnectorId": "input"
+    },
+    {
+      "id": "70id3oitl",
+      "sourceNodeId": "node2",
+      "sourceConnectorId": "output",
+      "targetNodeId": "node3",
+      "targetConnectorId": "input"
+    }
+  ]
+}

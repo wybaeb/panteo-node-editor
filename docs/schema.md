@@ -1,0 +1,248 @@
+# JSON Schema Documentation
+
+This document defines the exact JSON structure for nodes and edges in the Panteo Node Editor.
+
+## Editor State Schema
+
+The complete editor state is represented as a JSON object with two main properties: `nodes` and `edges`.
+
+```json
+{
+  "nodes": [
+    // Array of node objects
+  ],
+  "edges": [
+    // Array of edge objects
+  ]
+}
+```
+
+## Node Schema
+
+Each node in the editor is represented by a JSON object with the following properties:
+
+```json
+{
+  "id": "string",
+  "type": "string",
+  "x": "number",
+  "y": "number",
+  "title": "string",
+  "icon": "string",
+  "inputs": [
+    // Array of input connector objects
+  ],
+  "outputs": [
+    // Array of output connector objects
+  ]
+}
+```
+
+### Properties
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `id` | string | Yes | Unique identifier for the node |
+| `type` | string | Yes | Type of node (must be registered with the editor) |
+| `x` | number | Yes | X coordinate position in the editor |
+| `y` | number | Yes | Y coordinate position in the editor |
+| `title` | string | Yes | Display title for the node |
+| `icon` | string | Yes | Material icon name or SVG path |
+| `inputs` | array | Yes | Array of input connector objects |
+| `outputs` | array | Yes | Array of output connector objects |
+
+## Connector Schema
+
+Input and output connectors are represented by JSON objects with the following properties:
+
+### Input Connector
+
+```json
+{
+  "id": "string",
+  "label": "string",
+  "control": {
+    // Optional control object
+  }
+}
+```
+
+### Output Connector
+
+```json
+{
+  "id": "string",
+  "label": "string"
+}
+```
+
+### Properties
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `id` | string | Yes | Unique identifier for the connector within the node |
+| `label` | string | Yes | Display label for the connector |
+| `control` | object | No | Control configuration for input connectors |
+
+## Control Schema
+
+Controls for input connectors can be of different types, each with its own schema:
+
+### Text Input Control
+
+```json
+{
+  "type": "text",
+  "value": "string",
+  "placeholder": "string"
+}
+```
+
+### Dropdown Control
+
+```json
+{
+  "type": "dropdown",
+  "value": "string",
+  "options": [
+    {
+      "value": "string",
+      "label": "string"
+    }
+  ]
+}
+```
+
+### Modal Control
+
+```json
+{
+  "type": "modal",
+  "fields": [
+    {
+      "name": "string",
+      "label": "string",
+      "type": "string",
+      "value": "string",
+      "placeholder": "string",
+      "options": [
+        {
+          "value": "string",
+          "label": "string"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Properties
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `type` | string | Yes | Type of control: "text", "dropdown", or "modal" |
+| `value` | string | No | Current value of the control |
+| `placeholder` | string | No | Placeholder text for text inputs |
+| `options` | array | No | Array of option objects for dropdown controls |
+| `fields` | array | No | Array of field objects for modal controls |
+
+## Edge Schema
+
+Each edge in the editor is represented by a JSON object with the following properties:
+
+```json
+{
+  "id": "string",
+  "sourceNodeId": "string",
+  "sourceConnectorId": "string",
+  "targetNodeId": "string",
+  "targetConnectorId": "string"
+}
+```
+
+### Properties
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `id` | string | Yes | Unique identifier for the edge |
+| `sourceNodeId` | string | Yes | ID of the source node |
+| `sourceConnectorId` | string | Yes | ID of the source connector (must be an output connector) |
+| `targetNodeId` | string | Yes | ID of the target node |
+| `targetConnectorId` | string | Yes | ID of the target connector (must be an input connector) |
+
+## Example
+
+Here's a complete example of an editor state with two nodes connected by an edge:
+
+```json
+{
+  "nodes": [
+    {
+      "id": "node1",
+      "type": "input_number",
+      "x": 100,
+      "y": 100,
+      "title": "Number Input",
+      "icon": "input",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "output",
+          "label": "Output"
+        }
+      ]
+    },
+    {
+      "id": "node2",
+      "type": "filter_range",
+      "x": 400,
+      "y": 100,
+      "title": "Range Filter",
+      "icon": "filter_alt",
+      "inputs": [
+        {
+          "id": "input",
+          "label": "Input",
+          "control": {
+            "type": "text",
+            "placeholder": "Enter value"
+          }
+        },
+        {
+          "id": "min",
+          "label": "Min",
+          "control": {
+            "type": "text",
+            "value": "0",
+            "placeholder": "Min value"
+          }
+        },
+        {
+          "id": "max",
+          "label": "Max",
+          "control": {
+            "type": "text",
+            "value": "100",
+            "placeholder": "Max value"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "output",
+          "label": "Output"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge1",
+      "sourceNodeId": "node1",
+      "sourceConnectorId": "output",
+      "targetNodeId": "node2",
+      "targetConnectorId": "input"
+    }
+  ]
+}
+```
