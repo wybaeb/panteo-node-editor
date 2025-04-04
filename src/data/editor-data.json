@@ -1,21 +1,6 @@
 {
   "nodes": [
     {
-      "id": "node1",
-      "type": "input_number",
-      "x": 100,
-      "y": 100,
-      "title": "Number Input",
-      "icon": "input",
-      "inputs": [],
-      "outputs": [
-        {
-          "id": "output",
-          "label": "Output"
-        }
-      ]
-    },
-    {
       "id": "node2",
       "type": "filter_range",
       "x": 400,
@@ -89,18 +74,33 @@
         }
       ],
       "outputs": []
+    },
+    {
+      "id": "node1",
+      "type": "input_number",
+      "x": 492,
+      "y": 446,
+      "title": "Number Input",
+      "icon": "input",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "output",
+          "label": "Output"
+        }
+      ]
     }
   ],
   "edges": [
     {
-      "id": "a0i4mtxed",
+      "id": "c6ll4xtsp",
       "sourceNodeId": "node1",
       "sourceConnectorId": "output",
       "targetNodeId": "node2",
       "targetConnectorId": "input"
     },
     {
-      "id": "70id3oitl",
+      "id": "sa7603lcc",
       "sourceNodeId": "node2",
       "sourceConnectorId": "output",
       "targetNodeId": "node3",
