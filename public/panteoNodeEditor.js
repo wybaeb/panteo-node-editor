@@ -149,7 +149,7 @@ const panteoNodeEditor = (function() {
                     type: 'string',
                     name: 'text_value',
                     label: 'Text Input',
-                    value: input.value?.text || '',
+                    value: input.value?.text_value || '',
                     placeholder: 'Enter text value...',
                     infoText: 'This is a simple text input field'
                   },
@@ -157,7 +157,7 @@ const panteoNodeEditor = (function() {
                     type: 'number',
                     name: 'number_value',
                     label: 'Number Input',
-                    value: input.value?.number || '',
+                    value: input.value?.number_value || '',
                     placeholder: '0',
                     infoText: 'Enter a numeric value'
                   },
@@ -165,7 +165,7 @@ const panteoNodeEditor = (function() {
                     type: 'textarea',
                     name: 'textarea_value',
                     label: 'Text Area',
-                    value: input.value?.textarea || '',
+                    value: input.value?.textarea_value || '',
                     placeholder: 'Enter multiline text...',
                     infoText: 'This field supports multiple lines of text'
                   },
@@ -173,7 +173,7 @@ const panteoNodeEditor = (function() {
                     type: 'dropdown',
                     name: 'dropdown_value',
                     label: 'Dropdown Select',
-                    value: input.value?.dropdown || '',
+                    value: input.value?.dropdown_value || '',
                     infoText: 'Select one option from the list',
                     options: [
                       { value: 'option1', label: 'Option 1' },
@@ -186,12 +186,20 @@ const panteoNodeEditor = (function() {
                 
                 modal.submitButton.addEventListener('click', () => {
                   const formControls = modal.element.querySelectorAll('.panteo-form-control');
-                  const values = Array.from(formControls).reduce((acc, control) => {
-                    acc[control.name] = control.value;
-                    return acc;
-                  }, {});
+                  const values = {};
+                  
+                  formControls.forEach(control => {
+                    values[control.name] = control.value;
+                  });
                   
                   input.value = values;
+                  
+                  const displayValue = Object.values(values).filter(Boolean).join(', ');
+                  const controlLabel = buttonEl.parentElement.previousElementSibling;
+                  if (controlLabel && controlLabel.classList.contains('panteo-connector-label')) {
+                    controlLabel.textContent = input.label + (displayValue ? `: ${displayValue}` : '');
+                  }
+                  
                   document.body.removeChild(modal.element);
                   notifyChange();
                 });
