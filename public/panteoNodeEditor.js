@@ -18,6 +18,11 @@ const panteoNodeEditor = (function() {
   let nodeTypes = {};
   let onChange = null;
   let selectedNode = null;
+  let selectedEdge = null; // Added for edge selection
+  
+  // Added for palette dragging
+  let isDraggingPalette = false;
+  let paletteDragOffset = { x: 0, y: 0 };
   
   // Node class definition
   class Node {
@@ -157,7 +162,7 @@ const panteoNodeEditor = (function() {
         
         this.outputs.forEach(output => {
           const connector = document.createElement('div');
-          connector.className = 'panteo-connector';
+          connector.className = 'panteo-connector panteo-connector-output';
           
           // Add label
           const label = document.createElement('div');
@@ -191,21 +196,21 @@ const panteoNodeEditor = (function() {
       if (!this.element) return null;
       console.log(`Getting position for connector ${connectorId} (${type}) on node ${this.id}`);
       
-      const connectors = this.element.querySelectorAll(`.panteo-connector-${type}`);
-      for (let i = 0; i < connectors.length; i++) {
-        if (connectors[i].dataset.connectorId === connectorId) {
-          const rect = connectors[i].getBoundingClientRect();
-          const containerRect = container.getBoundingClientRect();
-          const result = {
-            x: rect.left + rect.width / 2 - containerRect.left,
-            y: rect.top + rect.height / 2 - containerRect.top
-          };
-          console.log(`  > Found connector, position:`, {x: result.x, y: result.y});
-          return result;
-        }
+      // CORRECTED SELECTOR: Find the specific point element
+      const connectorPoint = this.element.querySelector(`.panteo-connector-point[data-connector-id="${connectorId}"][data-connector-type="${type}"]`);
+      
+      if (connectorPoint) {
+        const rect = connectorPoint.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const result = {
+          x: rect.left + rect.width / 2 - containerRect.left,
+          y: rect.top + rect.height / 2 - containerRect.top
+        };
+        console.log(`  > Found connector point, position:`, {x: result.x, y: result.y});
+        return result;
       }
       
-      console.warn(`  > Connector ${connectorId} (${type}) not found on node ${this.id}`);
+      console.warn(`  > Connector point ${connectorId} (${type}) not found on node ${this.id}`);
       return null;
     }
   }
@@ -245,8 +250,15 @@ const panteoNodeEditor = (function() {
         targetPos.x, targetPos.y
       );
       
-      ctx.strokeStyle = '#6c757d';
-      ctx.lineWidth = 2;
+      // Выделяем выбранное ребро другим цветом и толщиной
+      if (selectedEdge && selectedEdge.id === this.id) {
+        ctx.strokeStyle = '#007bff'; // Синий цвет для выбранного ребра
+        ctx.lineWidth = 3; // Более толстая линия
+      } else {
+        ctx.strokeStyle = '#6c757d'; // Стандартный цвет
+        ctx.lineWidth = 2; // Стандартная толщина
+      }
+      
       ctx.stroke();
     }
   }
@@ -316,6 +328,42 @@ const panteoNodeEditor = (function() {
     return null;
   }
   
+  // Added function to find edge near a point
+  function findEdgeNearPoint(x, y, threshold = 10) {
+    console.log(`Finding edge near (${x}, ${y}) with threshold ${threshold}`);
+    for (let i = 0; i < edges.length; i++) {
+        const edge = edges[i];
+        const sourceNode = nodes.find(node => node.id === edge.sourceNodeId);
+        const targetNode = nodes.find(node => node.id === edge.targetNodeId);
+
+        if (!sourceNode || !targetNode) continue;
+
+        const sourcePos = sourceNode.getConnectorPosition(edge.sourceConnectorId, 'output');
+        const targetPos = targetNode.getConnectorPosition(edge.targetConnectorId, 'input');
+
+        if (!sourcePos || !targetPos) continue;
+
+        // Calculate approximate midpoint of the edge
+        // For a Bézier curve, the true midpoint is complex, let's approximate with the line segment midpoint
+        const midX = (sourcePos.x + targetPos.x) / 2;
+        const midY = (sourcePos.y + targetPos.y) / 2;
+
+        // Calculate distance from click point to midpoint
+        const dx = x - midX;
+        const dy = y - midY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        console.log(`  > Checking edge ${edge.id}: Midpoint (${midX.toFixed(1)}, ${midY.toFixed(1)}), Distance: ${distance.toFixed(1)}`);
+
+        if (distance <= threshold) {
+            console.log(`  > Found edge near point: ${edge.id}`);
+            return edge;
+        }
+    }
+    console.log(`  > No edge found near point.`);
+    return null;
+  }
+  
   function renderEdges() {
     if (!ctx || !canvas) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -341,11 +389,19 @@ const panteoNodeEditor = (function() {
                     tempEdge.targetPos.x, tempEdge.targetPos.y
                 );
 
-                ctx.strokeStyle = '#6c757d'; // Use appropriate color
-                ctx.lineWidth = 2;
-                ctx.setLineDash([5, 3]); // Dashed line for temp edge
+                // Если мы удаляем ребро, используем красный цвет и пунктирную линию
+                if (tempEdge.isDeleting) {
+                    ctx.strokeStyle = '#dc3545'; // Красный цвет для удаления
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 3]); // Пунктирная линия
+                } else {
+                    ctx.strokeStyle = '#6c757d'; // Стандартный цвет
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 3]); // Пунктирная линия для временного ребра
+                }
+                
                 ctx.stroke();
-                ctx.setLineDash([]); // Reset line dash
+                ctx.setLineDash([]); // Сбрасываем пунктирную линию
             }
         }
     }
@@ -368,80 +424,57 @@ const panteoNodeEditor = (function() {
   }
   
   function createPalette() {
-    // Create palette container
+    console.log("Creating palette...");
     const paletteEl = document.createElement('div');
     paletteEl.className = 'panteo-palette';
     
-    // Create dropdown
-    const dropdown = document.createElement('div');
-    dropdown.className = 'panteo-palette-dropdown';
-    
-    // Create header
+    // Add Header for dragging
     const header = document.createElement('div');
     header.className = 'panteo-palette-header';
-    header.textContent = 'Add Node';
-    dropdown.appendChild(header);
+    header.textContent = 'Node Palette'; // Or use an icon
+    paletteEl.appendChild(header);
     
-    // Create content
-    const content = document.createElement('div');
-    content.className = 'panteo-palette-content';
+    // Add Dropdown or list container
+    const listContainer = document.createElement('div');
+    listContainer.className = 'panteo-palette-list'; // Add class for styling
+    paletteEl.appendChild(listContainer);
     
-    // Group node types by category
+    // Group nodes by category
     const categories = {};
-    Object.keys(nodeTypes).forEach(type => {
-      const nodeType = nodeTypes[type];
-      if (!categories[nodeType.category]) {
-        categories[nodeType.category] = [];
-      }
-      categories[nodeType.category].push({
-        type,
-        title: nodeType.title,
-        icon: nodeType.icon
-      });
-    });
+    for (const type in nodeTypes) {
+        const config = nodeTypes[type];
+        if (!categories[config.category]) {
+            categories[config.category] = [];
+        }
+        categories[config.category].push({ type, config });
+    }
     
-    // Create categories
-    Object.keys(categories).forEach(category => {
-      const categoryEl = document.createElement('div');
-      categoryEl.className = 'panteo-palette-category';
-      
-      // Create category header
-      const categoryHeader = document.createElement('div');
-      categoryHeader.className = 'panteo-palette-category-header';
-      categoryHeader.textContent = category;
-      categoryEl.appendChild(categoryHeader);
-      
-      // Create items container
-      const items = document.createElement('div');
-      items.className = 'panteo-palette-items';
-      
-      // Create items
-      categories[category].forEach(item => {
-        const itemEl = document.createElement('div');
-        itemEl.className = 'panteo-palette-item';
-        itemEl.dataset.nodeType = item.type;
+    // Create category sections
+    for (const categoryName in categories) {
+        const categorySection = document.createElement('div');
+        categorySection.className = 'panteo-palette-category';
         
-        // Add icon
-        const iconEl = document.createElement('span');
-        iconEl.className = 'panteo-palette-item-icon material-icons';
-        iconEl.textContent = item.icon;
-        itemEl.appendChild(iconEl);
+        const categoryTitle = document.createElement('div');
+        categoryTitle.className = 'panteo-palette-category-title';
+        categoryTitle.textContent = categoryName;
+        categorySection.appendChild(categoryTitle);
         
-        // Add title
-        const titleEl = document.createElement('span');
-        titleEl.textContent = item.title;
-        itemEl.appendChild(titleEl);
-        
-        items.appendChild(itemEl);
-      });
-      
-      categoryEl.appendChild(items);
-      content.appendChild(categoryEl);
-    });
+        categories[categoryName].forEach(({ type, config }) => {
+            const item = document.createElement('div');
+            item.className = 'panteo-palette-item';
+            item.dataset.nodeType = type;
+            item.innerHTML = `
+                <span class="material-icons panteo-palette-item-icon">${config.icon || 'settings'}</span>
+                <span class="panteo-palette-item-label">${config.title}</span>
+            `;
+            categorySection.appendChild(item);
+        });
+        listContainer.appendChild(categorySection); // Append category to list container
+    }
     
-    dropdown.appendChild(content);
-    paletteEl.appendChild(dropdown);
-    
+    // Add event listener for the palette itself (delegated mousedown)
+    paletteEl.addEventListener('mousedown', handlePaletteMouseDown);
+    console.log("Palette created with header and categories.");
     return paletteEl;
   }
   
@@ -594,23 +627,33 @@ const panteoNodeEditor = (function() {
   }
   
   // Helper to update selection visuals
-  function updateSelectionVisuals(newSelectedNode) {
-    console.log(`Updating selection. Old: ${selectedNode?.id}, New: ${newSelectedNode?.id}`);
+  function updateSelectionVisuals(newSelectedNode, newSelectedEdge) {
+    console.log(`Updating selection. Old: ${selectedNode?.id}, New: ${newSelectedNode?.id}, Old Edge: ${selectedEdge?.id}, New Edge: ${newSelectedEdge?.id}`);
+    
+    // Обновляем выбранный узел
     if (selectedNode && selectedNode.element) {
         selectedNode.element.classList.remove('selected');
     }
     selectedNode = newSelectedNode;
     if (selectedNode && selectedNode.element) {
         selectedNode.element.classList.add('selected');
-        // Bring selected node to front visually (optional, requires CSS z-index handling)
-        // container.appendChild(selectedNode.element); // This changes DOM order
     }
-     // Re-render edges maybe? Or handle z-index purely in CSS
+    
+    // Обновляем выбранное ребро
+    selectedEdge = newSelectedEdge;
+    
+    // Перерисовываем ребра, чтобы обновить их визуальное состояние
+    renderEdges();
   }
   
   // Event handlers
   function handleMouseDown(e) {
     console.log(`--- Mouse Down ---`);
+    // If the click started on the palette, let the palette handler take over
+    if (e.target.closest('.panteo-palette')) {
+        console.log(" > Click originated on palette, ignoring for node/edge.");
+        return;
+    }
     if (!container || e.button !== 0) {
         console.log(`  > Aborted (no container or not left button)`);
         return;
@@ -624,18 +667,53 @@ const panteoNodeEditor = (function() {
     if (connector) {
         console.log(`  > Clicked on connector:`, connector);
         selectedConnector = connector;
-        if (connector.type === 'output') {
+        
+        // Проверяем, есть ли уже соединение с этим коннектором
+        if (connector.type === 'input') {
+            // Если кликнули на входной коннектор, ищем ребро, которое к нему подключено
+            const connectedEdge = edges.find(edge => 
+                edge.targetNodeId === connector.nodeId && 
+                edge.targetConnectorId === connector.connectorId
+            );
+            
+            if (connectedEdge) {
+                console.log(`  > Found connected edge: ${connectedEdge.id}, starting edge deletion drag`);
+                // Начинаем перетаскивание для удаления ребра
+                tempEdge = {
+                    sourceNodeId: connectedEdge.sourceNodeId,
+                    sourceConnectorId: connectedEdge.sourceConnectorId,
+                    targetNodeId: connectedEdge.targetNodeId,
+                    targetConnectorId: connectedEdge.targetConnectorId,
+                    isDeleting: true // Флаг, указывающий, что мы удаляем ребро
+                };
+                // Удаляем ребро из массива, так как мы его перетаскиваем
+                edges = edges.filter(edge => edge.id !== connectedEdge.id);
+                updateSelectionVisuals(null, null);
+                renderEdges();
+            } else if (connector.type === 'output') {
+                // Если кликнули на выходной коннектор, начинаем создание нового ребра
+                tempEdge = {
+                    sourceNodeId: connector.nodeId,
+                    sourceConnectorId: connector.connectorId,
+                    targetPos: pos
+                };
+                console.log(`    * Starting edge creation from ${connector.nodeId}/${connector.connectorId}`);
+                updateSelectionVisuals(null, null);
+            }
+        } else if (connector.type === 'output') {
+            // Если кликнули на выходной коннектор, начинаем создание нового ребра
             tempEdge = {
                 sourceNodeId: connector.nodeId,
                 sourceConnectorId: connector.connectorId,
                 targetPos: pos
             };
             console.log(`    * Starting edge creation from ${connector.nodeId}/${connector.connectorId}`);
-            updateSelectionVisuals(null);
+            updateSelectionVisuals(null, null);
         }
-         // Prevent default to avoid text selection, etc.
+        
+        // Prevent default to avoid text selection, etc.
         e.preventDefault();
-        // Add move/up listeners for edge creation
+        // Add move/up listeners for edge creation/deletion
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
         console.log(`  > Added mousemove/mouseup listeners for edge.`);
@@ -647,7 +725,7 @@ const panteoNodeEditor = (function() {
     if (node) {
          // Update selection state
         console.log(`  > Clicked on node: ${node.id}`);
-        updateSelectionVisuals(node);
+        updateSelectionVisuals(node, null);
 
         // Check if click is on the header for dragging
         if (e.target.closest('.panteo-node-header')) {
@@ -678,13 +756,21 @@ const panteoNodeEditor = (function() {
         return;
     }
 
-    // Clicked on background - deselect
+    // Clicked on background - deselect nodes, but check for edges first
     console.log(`  > Clicked on background.`);
-    updateSelectionVisuals(null);
-    selectedConnector = null; // Clear connector state too
-    draggedNode = null; // Ensure nothing is dragged
-    tempEdge = null; // Ensure no temp edge is drawn
-    // No need to add move/up listeners if clicking background
+    const edge = findEdgeNearPoint(pos.x, pos.y, 15);
+    if (edge) {
+        console.log(`  > Selecting edge: ${edge.id}`);
+        updateSelectionVisuals(null, edge); // Pass edge to selection function
+    } else {
+        console.log(`  > Deselecting everything.`);
+        updateSelectionVisuals(null, null); // Deselect both node and edge
+    }
+    
+    // Clear other states regardless of finding an edge
+    selectedConnector = null;
+    draggedNode = null;
+    tempEdge = null;
   }
   
   function handleMouseMove(e) {
@@ -740,40 +826,74 @@ const panteoNodeEditor = (function() {
         notifyChange(); // Notify state change after drag ends
     }
 
-    // Finalize edge creation
+    // Finalize edge creation or deletion
     if (tempEdge) {
-        console.log(`  > Finalizing edge creation from ${tempEdge.sourceNodeId}/${tempEdge.sourceConnectorId}`);
+        console.log(`  > Finalizing edge operation from ${tempEdge.sourceNodeId}/${tempEdge.sourceConnectorId}`);
         const targetConnector = findConnectorAt(pos.x, pos.y);
 
-        if (targetConnector && targetConnector.type === 'input' && targetConnector.nodeId !== tempEdge.sourceNodeId) {
-            console.log(`    * Target connector found:`, targetConnector);
-            // Check if target connector is already connected
-             const existingEdge = edges.find(edge =>
-                 edge.targetNodeId === targetConnector.nodeId &&
-                 edge.targetConnectorId === targetConnector.connectorId
-             );
-
-             // Check if source connector is already connected (assuming one output connection)
-             const existingSourceEdge = edges.find(edge =>
-                 edge.sourceNodeId === tempEdge.sourceNodeId &&
-                 edge.sourceConnectorId === tempEdge.sourceConnectorId
-             );
-
-            if (!existingEdge && !existingSourceEdge) { // Only connect if target input and source output are free
-                console.log(`    * Creating new edge.`);
-                const newEdge = new Edge(
-                    tempEdge.sourceNodeId,
-                    tempEdge.sourceConnectorId,
-                    targetConnector.nodeId,
-                    targetConnector.connectorId
+        if (tempEdge.isDeleting) {
+            // Если мы удаляем ребро и отпустили мышь на другом коннекторе, восстанавливаем ребро
+            if (targetConnector && targetConnector.type === 'input' && 
+                targetConnector.nodeId !== tempEdge.sourceNodeId) {
+                console.log(`    * Restoring edge to new target:`, targetConnector);
+                
+                // Проверяем, не занят ли целевой коннектор
+                const existingEdge = edges.find(edge =>
+                    edge.targetNodeId === targetConnector.nodeId &&
+                    edge.targetConnectorId === targetConnector.connectorId
                 );
-                edges.push(newEdge);
-                notifyChange();
+                
+                if (!existingEdge) {
+                    // Создаем новое ребро с новым целевым коннектором
+                    const newEdge = new Edge(
+                        tempEdge.sourceNodeId,
+                        tempEdge.sourceConnectorId,
+                        targetConnector.nodeId,
+                        targetConnector.connectorId
+                    );
+                    edges.push(newEdge);
+                    console.log(`    * Edge restored with new target.`);
+                    notifyChange();
+                } else {
+                    console.log(`    * Cannot restore edge: target connector is busy.`);
+                }
             } else {
-                 console.log(`    * Edge creation aborted (connector busy). Existing Target: ${!!existingEdge}, Existing Source: ${!!existingSourceEdge}`);
+                console.log(`    * Edge deletion confirmed.`);
+                // Ребро уже удалено из массива в handleMouseDown
+                notifyChange();
             }
         } else {
-             console.log(`    * No valid target connector found.`);
+            // Стандартное создание ребра
+            if (targetConnector && targetConnector.type === 'input' && targetConnector.nodeId !== tempEdge.sourceNodeId) {
+                console.log(`    * Target connector found:`, targetConnector);
+                // Check if target connector is already connected
+                const existingEdge = edges.find(edge =>
+                    edge.targetNodeId === targetConnector.nodeId &&
+                    edge.targetConnectorId === targetConnector.connectorId
+                );
+
+                // Check if source connector is already connected (assuming one output connection)
+                const existingSourceEdge = edges.find(edge =>
+                    edge.sourceNodeId === tempEdge.sourceNodeId &&
+                    edge.sourceConnectorId === tempEdge.sourceConnectorId
+                );
+
+                if (!existingEdge && !existingSourceEdge) { // Only connect if target input and source output are free
+                    console.log(`    * Creating new edge.`);
+                    const newEdge = new Edge(
+                        tempEdge.sourceNodeId,
+                        tempEdge.sourceConnectorId,
+                        targetConnector.nodeId,
+                        targetConnector.connectorId
+                    );
+                    edges.push(newEdge);
+                    notifyChange();
+                } else {
+                    console.log(`    * Edge creation aborted (connector busy). Existing Target: ${!!existingEdge}, Existing Source: ${!!existingSourceEdge}`);
+                }
+            } else {
+                console.log(`    * No valid target connector found.`);
+            }
         }
         tempEdge = null; // Clear temporary edge state
         renderEdges(); // Redraw to remove temporary edge or show final edge
@@ -788,12 +908,26 @@ const panteoNodeEditor = (function() {
   
   function handleKeyDown(e) {
     console.log(`--- Key Down: ${e.key} ---`);
-    if (!selectedNode) {
-        console.log(`  > Aborted (no node selected)`);
+    
+    // Обработка удаления выбранного ребра
+    if (selectedEdge && (e.key === 'Delete' || e.key === 'Backspace')) {
+        console.log(`  > Delete requested for edge ${selectedEdge.id}`);
+        
+        // Удаляем ребро из массива
+        edges = edges.filter(edge => edge.id !== selectedEdge.id);
+        
+        // Обновляем визуальное состояние
+        updateSelectionVisuals(null, null);
+        renderEdges();
+        notifyChange();
+        
+        e.preventDefault(); // Предотвращаем стандартное поведение браузера
+        console.log(`  > Edge ${selectedEdge.id} deleted.`);
         return;
     }
-
-    if (e.key === 'Delete' || e.key === 'Backspace') {
+    
+    // Обработка удаления выбранного узла
+    if (selectedNode && (e.key === 'Delete' || e.key === 'Backspace')) {
         console.log(`  > Delete requested for node ${selectedNode.id}`);
         const nodeToDelete = selectedNode; // Keep reference
 
@@ -813,14 +947,72 @@ const panteoNodeEditor = (function() {
             nodes.splice(index, 1);
         }
 
-        // Clear selection and update state
-        updateSelectionVisuals(null); // Deselect
+        // Clear selection and update visuals
+        updateSelectionVisuals(null, null); // Deselect both node and edge
         renderEdges(); // Redraw edges after removal
         notifyChange();
 
         e.preventDefault(); // Prevent browser back navigation on Backspace
         console.log(`  > Node ${nodeToDelete.id} deleted.`);
     }
+  }
+  
+  // --- Palette Dragging Handlers ---
+  
+  function handlePaletteMouseDown(e) {
+    // Only drag if clicking the palette header/handle
+    if (!e.target.closest('.panteo-palette-header') || e.button !== 0) return;
+
+    console.log("--- Palette Mouse Down ---");
+    isDraggingPalette = true;
+    const rect = palette.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const mousePos = getMousePosition(e); // Use our relative position function
+
+    // Calculate offset relative to the palette's top-left corner
+    paletteDragOffset = {
+        x: mousePos.x - (rect.left - containerRect.left),
+        y: mousePos.y - (rect.top - containerRect.top)
+    };
+    console.log(`  > Palette Offset:`, paletteDragOffset);
+
+    palette.classList.add('dragging');
+    e.preventDefault();
+    document.addEventListener('mousemove', handlePaletteMouseMove);
+    document.addEventListener('mouseup', handlePaletteMouseUp);
+    console.log("  > Added palette move/up listeners");
+  }
+  
+  function handlePaletteMouseMove(e) {
+    if (!isDraggingPalette) return;
+
+    const mousePos = getMousePosition(e);
+    let newX = mousePos.x - paletteDragOffset.x;
+    let newY = mousePos.y - paletteDragOffset.y;
+
+    // Basic boundary check (keep palette within container)
+    const paletteWidth = palette.offsetWidth;
+    const paletteHeight = palette.offsetHeight;
+    const containerWidth = container.offsetWidth;
+    const containerHeight = container.offsetHeight;
+
+    newX = Math.max(0, Math.min(containerWidth - paletteWidth, newX));
+    newY = Math.max(0, Math.min(containerHeight - paletteHeight, newY));
+
+    palette.style.left = `${newX}px`;
+    palette.style.top = `${newY}px`;
+    e.preventDefault();
+  }
+  
+  function handlePaletteMouseUp(e) {
+    if (!isDraggingPalette || e.button !== 0) return;
+
+    console.log("--- Palette Mouse Up ---");
+    isDraggingPalette = false;
+    palette.classList.remove('dragging');
+    document.removeEventListener('mousemove', handlePaletteMouseMove);
+    document.removeEventListener('mouseup', handlePaletteMouseUp);
+    console.log("  > Removed palette move/up listeners");
   }
   
   // Public API
@@ -859,9 +1051,9 @@ const panteoNodeEditor = (function() {
         paletteItems.forEach(item => {
           item.addEventListener('click', e => {
             const nodeType = e.currentTarget.dataset.nodeType;
-             // Position new node with an offset
-             const initialX = 50 + newNodeOffset * 20; // Offset X
-             const initialY = 50 + newNodeOffset * 20; // Offset Y
+             // Position new node further away from corner, with offset
+             const initialX = 150 + newNodeOffset * 25; // Start further right
+             const initialY = 100 + newNodeOffset * 25; // Start further down
              newNodeOffset++; // Increment offset for next node
 
             const node = createNodeFromType(nodeType, initialX, initialY);
@@ -871,7 +1063,7 @@ const panteoNodeEditor = (function() {
               const nodeElement = node.render(); // Get the rendered element
               container.appendChild(nodeElement); // Append it
               console.log(` > Node element ${node.id} appended to container:`, nodeElement); // DEBUG: Verify append
-              updateSelectionVisuals(node); // Select the new node
+              updateSelectionVisuals(node, null); // Select the new node
               notifyChange();
             }
             // Optionally close palette dropdown here
@@ -911,7 +1103,7 @@ const panteoNodeEditor = (function() {
         }
       });
       nodes = [];
-      updateSelectionVisuals(null); // Clear selection
+      updateSelectionVisuals(null, null); // Clear selection
       
       // Create new nodes
       (nodeData || []).forEach(data => {
@@ -1004,6 +1196,13 @@ const panteoNodeEditor = (function() {
       onChange = null;
       selectedNode = null;
       console.log("PanteoNodeEditor destroyed.");
+      
+      // Ensure palette listeners are removed
+      if (palette) {
+        palette.removeEventListener('mousedown', handlePaletteMouseDown);
+      }
+      document.removeEventListener('mousemove', handlePaletteMouseMove);
+      document.removeEventListener('mouseup', handlePaletteMouseUp);
     }
   };
 })();
