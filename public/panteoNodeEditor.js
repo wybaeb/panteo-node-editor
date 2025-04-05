@@ -146,6 +146,11 @@ const panteoNodeEditor = (function () {
               inputEl.type = 'text';
               inputEl.value = input.control.value || '';
               inputEl.placeholder = input.control.placeholder || '';
+              // Добавляем обработчик события для сохранения значения при вводе
+              inputEl.addEventListener('input', (e) => {
+                input.control.value = e.target.value;
+                notifyChange();
+              });
               control.appendChild(inputEl);
             } else if (input.control.type === 'dropdown') {
               const selectEl = document.createElement('select');
@@ -157,6 +162,11 @@ const panteoNodeEditor = (function () {
                   optionEl.selected = true;
                 }
                 selectEl.appendChild(optionEl);
+              });
+              // Добавляем обработчик события для сохранения выбранного значения
+              selectEl.addEventListener('change', (e) => {
+                input.control.value = e.target.value;
+                notifyChange();
               });
               control.appendChild(selectEl);
             } else if (input.control.type === 'modal') {
@@ -699,10 +709,29 @@ const panteoNodeEditor = (function () {
         y: node.y,
         title: node.title,
         icon: node.icon,
-        inputs: node.inputs.map(input => ({
-          ...input,
-          value: input.value // Сохраняем значения input
-        })),
+        inputs: node.inputs.map(input => {
+          // Создаем копию входа для сохранения
+          const inputData = {
+            id: input.id,
+            label: input.label
+          };
+
+          // Сохраняем значение из модального окна, если оно есть
+          if (input.value) {
+            inputData.value = input.value;
+          }
+
+          // Сохраняем control с его значением, если он есть
+          if (input.control) {
+            inputData.control = { ...input.control };
+            // Для совместимости также сохраняем значение контрола в корне input
+            if (input.control.value) {
+              inputData.value = input.control.value;
+            }
+          }
+
+          return inputData;
+        }),
         outputs: node.outputs
       })),
       edges: edges.map(edge => ({
@@ -1239,14 +1268,29 @@ const panteoNodeEditor = (function () {
         const mergedInputs = (data.inputs || []).map(savedInput => {
           const configInput = (nodeTypeConfig.inputs || []).find(i => i.id === savedInput.id);
           if (configInput) {
-            return {
+            // Создаем базовый вход на основе конфигурации
+            const mergedInput = {
               ...configInput,
-              ...savedInput,
-              control: {
-                ...configInput.control,
-                value: savedInput.value
-              }
+              ...savedInput
             };
+
+            // Если есть control в сохраненных данных, используем его
+            if (savedInput.control) {
+              mergedInput.control = {
+                ...configInput.control,
+                ...savedInput.control
+              };
+            } else if (configInput.control) {
+              // Иначе используем control из конфигурации
+              mergedInput.control = { ...configInput.control };
+            }
+
+            // Если у сохраненного входа есть value и нет control.value, перенесем его в control.value
+            if (savedInput.value && mergedInput.control && !mergedInput.control.value) {
+              mergedInput.control.value = savedInput.value;
+            }
+
+            return mergedInput;
           }
           return savedInput;
         });
