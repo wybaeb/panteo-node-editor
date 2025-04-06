@@ -175,44 +175,72 @@ const panteoNodeEditor = (function () {
               buttonEl.dataset.nodeId = this.id;
               buttonEl.dataset.connectorId = input.id;
               buttonEl.addEventListener('click', () => {
-                const modal = createModal('Edit Values', [
-                  {
-                    type: 'string',
-                    name: 'text_value',
-                    label: 'Text Input',
-                    value: input.value?.text_value || '',
-                    placeholder: 'Enter text value...',
-                    infoText: 'This is a simple text input field'
-                  },
-                  {
-                    type: 'number',
-                    name: 'number_value',
-                    label: 'Number Input',
-                    value: input.value?.number_value || '',
-                    placeholder: '0',
-                    infoText: 'Enter a numeric value'
-                  },
-                  {
-                    type: 'textarea',
-                    name: 'textarea_value',
-                    label: 'Text Area',
-                    value: input.value?.textarea_value || '',
-                    placeholder: 'Enter multiline text...',
-                    infoText: 'This field supports multiple lines of text'
-                  },
-                  {
-                    type: 'dropdown',
-                    name: 'dropdown_value',
-                    label: 'Dropdown Select',
-                    value: input.value?.dropdown_value || '',
-                    infoText: 'Select one option from the list',
-                    options: [
-                      { value: 'option1', label: 'Option 1' },
-                      { value: 'option2', label: 'Option 2' },
-                      { value: 'option3', label: 'Option 3' }
-                    ]
+                // Check if the node type has modal_fields defined
+                const nodeTypeInfo = nodeTypes[this.type];
+                let modalFields = [];
+
+                // Try to get modal fields from component metadata
+                if (nodeTypeInfo && nodeTypeInfo.inputs) {
+                  const inputDef = nodeTypeInfo.inputs.find(i => i.id === input.id);
+                  if (inputDef && inputDef.modal_fields) {
+                    console.log("Using modal_fields from component metadata:", inputDef.modal_fields);
+                    // Map modal_fields to the format expected by createModal
+                    modalFields = inputDef.modal_fields.map(field => ({
+                      type: field.type,
+                      name: field.name,
+                      label: field.label,
+                      value: input.value?.[field.name] || field.default || '',
+                      placeholder: field.placeholder || '',
+                      infoText: field.info_text || '',
+                      options: field.options
+                    }));
                   }
-                ]);
+                }
+
+                // Fallback to default fields if no modal_fields defined
+                if (modalFields.length === 0) {
+                  console.log("Using default modal fields");
+                  modalFields = [
+                    {
+                      type: 'string',
+                      name: 'text_value',
+                      label: 'Text Input',
+                      value: input.value?.text_value || '',
+                      placeholder: 'Enter text value...',
+                      infoText: 'This is a simple text input field'
+                    },
+                    {
+                      type: 'number',
+                      name: 'number_value',
+                      label: 'Number Input',
+                      value: input.value?.number_value || '',
+                      placeholder: '0',
+                      infoText: 'Enter a numeric value'
+                    },
+                    {
+                      type: 'textarea',
+                      name: 'textarea_value',
+                      label: 'Text Area',
+                      value: input.value?.textarea_value || '',
+                      placeholder: 'Enter multiline text...',
+                      infoText: 'This field supports multiple lines of text'
+                    },
+                    {
+                      type: 'dropdown',
+                      name: 'dropdown_value',
+                      label: 'Dropdown Select',
+                      value: input.value?.dropdown_value || '',
+                      infoText: 'Select one option from the list',
+                      options: [
+                        { value: 'option1', label: 'Option 1' },
+                        { value: 'option2', label: 'Option 2' },
+                        { value: 'option3', label: 'Option 3' }
+                      ]
+                    }
+                  ];
+                }
+
+                const modal = createModal('Edit Values', modalFields);
                 document.body.appendChild(modal.element);
 
                 modal.submitButton.addEventListener('click', () => {
@@ -507,6 +535,19 @@ const panteoNodeEditor = (function () {
     const nodeType = nodeTypes[type];
     if (!nodeType) return null;
 
+    // Подготавливаем входы, добавляя control для модальных окон
+    const preparedInputs = (nodeType.inputs || []).map(input => {
+      const inputCopy = { ...input };
+
+      // Если input имеет type="modal", но не имеет control, добавляем его
+      if ((input.type === 'modal' || input.modal_fields) && !input.control) {
+        inputCopy.control = { type: 'modal' };
+        console.log(`Added modal control to input ${input.id} for node type ${type}`);
+      }
+
+      return inputCopy;
+    });
+
     return new Node(
       type,
       null,
@@ -514,7 +555,7 @@ const panteoNodeEditor = (function () {
       y,
       nodeType.title,
       nodeType.icon,
-      nodeType.inputs,
+      preparedInputs,
       nodeType.outputs
     );
   }
@@ -610,13 +651,18 @@ const panteoNodeEditor = (function () {
 
     // Add fields
     fields.forEach(field => {
+      if (!field) {
+        console.warn('Undefined field in modal form, skipping');
+        return;
+      }
+
       const formGroup = document.createElement('div');
       formGroup.className = 'panteo-form-group';
 
       // Add label
       const label = document.createElement('label');
       label.className = 'panteo-form-label';
-      label.textContent = field.label;
+      label.textContent = field.label || 'Field';
       formGroup.appendChild(label);
 
       // Add info text if provided
@@ -629,9 +675,16 @@ const panteoNodeEditor = (function () {
 
       // Add control
       let control;
-      if (field.type === 'string' || field.type === 'number') {
+      if (field.type === 'string' || field.type === 'text' || field.type === 'password') {
         control = document.createElement('input');
-        control.type = field.type === 'number' ? 'number' : 'text';
+        control.type = field.type === 'password' ? 'password' : 'text';
+        control.className = 'panteo-form-control';
+        control.name = field.name;
+        control.value = field.value || '';
+        control.placeholder = field.placeholder || '';
+      } else if (field.type === 'number') {
+        control = document.createElement('input');
+        control.type = 'number';
         control.className = 'panteo-form-control';
         control.name = field.name;
         control.value = field.value || '';
@@ -648,19 +701,27 @@ const panteoNodeEditor = (function () {
         control.className = 'panteo-form-control';
         control.name = field.name;
 
-        (field.options || []).forEach(option => {
-          const optionEl = document.createElement('option');
-          optionEl.value = option.value;
-          optionEl.textContent = option.label;
-          if (option.value === field.value) {
-            optionEl.selected = true;
-          }
-          control.appendChild(optionEl);
-        });
+        if (Array.isArray(field.options)) {
+          field.options.forEach(option => {
+            if (option && typeof option === 'object') {
+              const optionEl = document.createElement('option');
+              optionEl.value = option.value;
+              optionEl.textContent = option.label;
+              if (option.value === field.value) {
+                optionEl.selected = true;
+              }
+              control.appendChild(optionEl);
+            }
+          });
+        }
       }
 
-      formGroup.appendChild(control);
-      bodyEl.appendChild(formGroup);
+      if (control) {
+        formGroup.appendChild(control);
+        bodyEl.appendChild(formGroup);
+      } else {
+        console.warn(`Unsupported field type: ${field.type}`);
+      }
     });
 
     contentEl.appendChild(bodyEl);
@@ -1273,6 +1334,12 @@ const panteoNodeEditor = (function () {
               ...configInput,
               ...savedInput
             };
+
+            // Если вход имеет тип modal, но не имеет контрола, добавляем его
+            if ((mergedInput.type === 'modal' || configInput.modal_fields) && !mergedInput.control) {
+              mergedInput.control = { type: 'modal' };
+              console.log(`Added modal control to input ${mergedInput.id} for node ${data.id}`);
+            }
 
             // Если есть control в сохраненных данных, используем его
             if (savedInput.control) {
