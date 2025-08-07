@@ -551,6 +551,90 @@ const panteoNodeEditor = (function () {
     return false;
   }
 
+  // Internal operations for toolbar and hotkeys
+  function performCopy() {
+    if (selectedNode) {
+      clipboard = { type: 'node', data: cloneNodeToData(selectedNode) };
+      currentPasteOffset = 0;
+      return true;
+    }
+    if (selectedEdge) {
+      clipboard = {
+        type: 'edge',
+        data: {
+          sourceNodeId: selectedEdge.sourceNodeId,
+          sourceConnectorId: selectedEdge.sourceConnectorId,
+          targetNodeId: selectedEdge.targetNodeId,
+          targetConnectorId: selectedEdge.targetConnectorId
+        }
+      };
+      currentPasteOffset = 0;
+      return true;
+    }
+    return false;
+  }
+
+  function performPaste() {
+    if (!clipboard) return false;
+    if (clipboard.type === 'node') {
+      const data = deepClone(clipboard.data);
+      const nodeTypeConfig = nodeTypes[data.type];
+      if (!nodeTypeConfig) return false;
+      const newNode = new Node(
+        data.type,
+        null,
+        (data.x || 100) + pasteOffsetStep * (currentPasteOffset + 1),
+        (data.y || 100) + pasteOffsetStep * (currentPasteOffset + 1),
+        data.title || nodeTypeConfig.title,
+        data.icon || nodeTypeConfig.icon,
+        deepClone(data.inputs || nodeTypeConfig.inputs || []),
+        deepClone(data.outputs || nodeTypeConfig.outputs || [])
+      );
+      nodes.push(newNode);
+      if (container) container.appendChild(newNode.render());
+      updateSelectionVisuals(newNode, null);
+      renderEdges();
+      notifyChange();
+      currentPasteOffset += 1;
+      return true;
+    }
+    if (clipboard.type === 'edge') {
+      const { sourceNodeId, sourceConnectorId, targetNodeId, targetConnectorId } = clipboard.data;
+      const sourceExists = nodes.some(n => n.id === sourceNodeId);
+      const targetExists = nodes.some(n => n.id === targetNodeId);
+      if (!sourceExists || !targetExists) return false;
+      const existingEdge = edges.find(e => e.targetNodeId === targetNodeId && e.targetConnectorId === targetConnectorId);
+      if (existingEdge) return false;
+      const newEdge = new Edge(sourceNodeId, sourceConnectorId, targetNodeId, targetConnectorId);
+      edges.push(newEdge);
+      updateSelectionVisuals(null, newEdge);
+      renderEdges();
+      notifyChange();
+      return true;
+    }
+    return false;
+  }
+
+  function performUndo() {
+    if (historyIndex <= 0) return false;
+    isRestoring = true;
+    historyIndex -= 1;
+    const state = deepClone(history[historyIndex]);
+    applyEditorState(state);
+    isRestoring = false;
+    return true;
+  }
+
+  function performRedo() {
+    if (historyIndex >= history.length - 1) return false;
+    isRestoring = true;
+    historyIndex += 1;
+    const state = deepClone(history[historyIndex]);
+    applyEditorState(state);
+    isRestoring = false;
+    return true;
+  }
+
   function findNodeAt(x, y) {
     // console.log(`Finding node at (${x}, ${y})`); // Optional: verbose
     for (let i = nodes.length - 1; i >= 0; i--) {
@@ -1280,6 +1364,26 @@ const panteoNodeEditor = (function () {
   function handleKeyDown(e) {
     console.log(`--- Key Down: ${e.key} ---`);
 
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const meta = isMac ? e.metaKey : e.ctrlKey;
+    // Hotkeys: Copy (Cmd/Ctrl+C), Paste (Cmd/Ctrl+V), Undo (Cmd/Ctrl+Z), Redo (Shift+Cmd/Ctrl+Z)
+    if (meta && !e.shiftKey && (e.key === 'c' || e.key === 'C')) {
+      if (performCopy()) e.preventDefault();
+      return;
+    }
+    if (meta && !e.shiftKey && (e.key === 'v' || e.key === 'V')) {
+      if (performPaste()) e.preventDefault();
+      return;
+    }
+    if (meta && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+      if (performUndo()) e.preventDefault();
+      return;
+    }
+    if (meta && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+      if (performRedo()) e.preventDefault();
+      return;
+    }
+
     // Обработка удаления выбранного ребра
     if (selectedEdge && (e.key === 'Delete' || e.key === 'Backspace')) {
       console.log(`  > Delete requested for edge ${selectedEdge.id}`);
@@ -1585,102 +1689,18 @@ const panteoNodeEditor = (function () {
 
     // Toolbar API
     copy: function () {
-      // Copy selected node (preferred) or selected edge data into clipboard
-      if (selectedNode) {
-        clipboard = { type: 'node', data: cloneNodeToData(selectedNode) };
-        currentPasteOffset = 0; // reset offset chain
-        return true;
-      }
-      if (selectedEdge) {
-        clipboard = {
-          type: 'edge',
-          data: {
-            sourceNodeId: selectedEdge.sourceNodeId,
-            sourceConnectorId: selectedEdge.sourceConnectorId,
-            targetNodeId: selectedEdge.targetNodeId,
-            targetConnectorId: selectedEdge.targetConnectorId
-          }
-        };
-        currentPasteOffset = 0;
-        return true;
-      }
-      return false;
+      return performCopy();
     },
 
-    paste: function () {
-      if (!clipboard) return false;
-
-      if (clipboard.type === 'node') {
-        const data = deepClone(clipboard.data);
-        // Create a new node with a new id and offset position
-        const nodeTypeConfig = nodeTypes[data.type];
-        if (!nodeTypeConfig) return false;
-
-        const newNode = new Node(
-          data.type,
-          null,
-          (data.x || 100) + pasteOffsetStep * (currentPasteOffset + 1),
-          (data.y || 100) + pasteOffsetStep * (currentPasteOffset + 1),
-          data.title || nodeTypeConfig.title,
-          data.icon || nodeTypeConfig.icon,
-          // Inputs/outputs from copied data (already merged in runtime)
-          deepClone(data.inputs || nodeTypeConfig.inputs || []),
-          deepClone(data.outputs || nodeTypeConfig.outputs || [])
-        );
-
-        nodes.push(newNode);
-        if (container) container.appendChild(newNode.render());
-        updateSelectionVisuals(newNode, null);
-        renderEdges();
-        notifyChange();
-
-        currentPasteOffset += 1;
-        return true;
-      }
-
-      if (clipboard.type === 'edge') {
-        // Only paste edge if both endpoints still exist and target input is free
-        const { sourceNodeId, sourceConnectorId, targetNodeId, targetConnectorId } = clipboard.data;
-        const sourceExists = nodes.some(n => n.id === sourceNodeId);
-        const targetExists = nodes.some(n => n.id === targetNodeId);
-        if (!sourceExists || !targetExists) return false;
-
-        const existingEdge = edges.find(e => e.targetNodeId === targetNodeId && e.targetConnectorId === targetConnectorId);
-        if (existingEdge) return false; // keep single incoming rule
-
-        const newEdge = new Edge(sourceNodeId, sourceConnectorId, targetNodeId, targetConnectorId);
-        edges.push(newEdge);
-        updateSelectionVisuals(null, newEdge);
-        renderEdges();
-        notifyChange();
-        return true;
-      }
-      return false;
-    },
+    paste: function () { return performPaste(); },
 
     deleteSelected: function () {
       return deleteSelectedInternal();
     },
 
     // Undo/Redo
-    undo: function () {
-      if (historyIndex <= 0) return false;
-      isRestoring = true;
-      historyIndex -= 1;
-      const state = deepClone(history[historyIndex]);
-      applyEditorState(state);
-      isRestoring = false;
-      return true;
-    },
-    redo: function () {
-      if (historyIndex >= history.length - 1) return false;
-      isRestoring = true;
-      historyIndex += 1;
-      const state = deepClone(history[historyIndex]);
-      applyEditorState(state);
-      isRestoring = false;
-      return true;
-    },
+    undo: function () { return performUndo(); },
+    redo: function () { return performRedo(); },
     zoomIn: function () { /* no-op for now */ },
     zoomOut: function () { /* no-op for now */ },
     fitToView: function () { /* no-op for now */ },
