@@ -572,7 +572,7 @@ const panteoNodeEditor = (function () {
   // Internal operations for toolbar and hotkeys
   function performCopy() {
     if (selectedNode) {
-      clipboard = { type: 'node', data: cloneNodeToData(selectedNode) };
+      clipboard = { type: 'node', data: { ...cloneNodeToData(selectedNode), zoomAtCopy: zoom } };
       currentPasteOffset = 0;
       return true;
     }
@@ -598,18 +598,24 @@ const panteoNodeEditor = (function () {
       const data = deepClone(clipboard.data);
       const nodeTypeConfig = nodeTypes[data.type];
       if (!nodeTypeConfig) return false;
+      // Maintain a consistent on-screen offset regardless of current zoom level
+      const visibleOffset = pasteOffsetStep / (zoom || 1);
       const newNode = new Node(
         data.type,
         null,
-        (data.x || 100) + pasteOffsetStep * (currentPasteOffset + 1),
-        (data.y || 100) + pasteOffsetStep * (currentPasteOffset + 1),
+        (data.x || 100) + visibleOffset * (currentPasteOffset + 1),
+        (data.y || 100) + visibleOffset * (currentPasteOffset + 1),
         data.title || nodeTypeConfig.title,
         data.icon || nodeTypeConfig.icon,
         deepClone(data.inputs || nodeTypeConfig.inputs || []),
         deepClone(data.outputs || nodeTypeConfig.outputs || [])
       );
       nodes.push(newNode);
-      if (container) container.appendChild(newNode.render());
+      if (contentLayer) {
+        contentLayer.appendChild(newNode.render());
+      } else if (container) {
+        container.appendChild(newNode.render());
+      }
       updateSelectionVisuals(newNode, null);
       renderEdges();
       notifyChange();
