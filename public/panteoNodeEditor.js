@@ -19,6 +19,9 @@ const panteoNodeEditor = (function () {
   let onChange = null;
   let selectedNode = null;
   let selectedEdge = null; // Added for edge selection
+  let clipboard = null; // Simple clipboard for copy/paste
+  let pasteOffsetStep = 20;
+  let currentPasteOffset = 0;
 
   // Added for palette dragging
   let isDraggingPalette = false;
@@ -401,6 +404,52 @@ const panteoNodeEditor = (function () {
       y: e.clientY - rect.top + container.scrollTop
     };
     return pos;
+  }
+
+  function deepClone(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function cloneNodeToData(node) {
+    return {
+      id: node.id,
+      type: node.type,
+      x: node.x,
+      y: node.y,
+      title: node.title,
+      icon: node.icon,
+      inputs: deepClone(node.inputs || []),
+      outputs: deepClone(node.outputs || [])
+    };
+  }
+
+  function deleteSelectedInternal() {
+    if (selectedEdge) {
+      edges = edges.filter(edge => edge.id !== selectedEdge.id);
+      updateSelectionVisuals(null, null);
+      renderEdges();
+      notifyChange();
+      return true;
+    }
+    if (selectedNode) {
+      const nodeToDelete = selectedNode;
+      // Remove edges connected to the node
+      edges = edges.filter(edge =>
+        edge.sourceNodeId !== nodeToDelete.id && edge.targetNodeId !== nodeToDelete.id
+      );
+      // Remove node element from DOM
+      if (nodeToDelete.element && nodeToDelete.element.parentNode) {
+        nodeToDelete.element.parentNode.removeChild(nodeToDelete.element);
+      }
+      // Remove node from array
+      const index = nodes.indexOf(nodeToDelete);
+      if (index !== -1) nodes.splice(index, 1);
+      updateSelectionVisuals(null, null);
+      renderEdges();
+      notifyChange();
+      return true;
+    }
+    return false;
   }
 
   function findNodeAt(x, y) {
@@ -1427,6 +1476,92 @@ const panteoNodeEditor = (function () {
       onChange = callback;
       return this;
     },
+
+    // Toolbar API
+    copy: function () {
+      // Copy selected node (preferred) or selected edge data into clipboard
+      if (selectedNode) {
+        clipboard = { type: 'node', data: cloneNodeToData(selectedNode) };
+        currentPasteOffset = 0; // reset offset chain
+        return true;
+      }
+      if (selectedEdge) {
+        clipboard = {
+          type: 'edge',
+          data: {
+            sourceNodeId: selectedEdge.sourceNodeId,
+            sourceConnectorId: selectedEdge.sourceConnectorId,
+            targetNodeId: selectedEdge.targetNodeId,
+            targetConnectorId: selectedEdge.targetConnectorId
+          }
+        };
+        currentPasteOffset = 0;
+        return true;
+      }
+      return false;
+    },
+
+    paste: function () {
+      if (!clipboard) return false;
+
+      if (clipboard.type === 'node') {
+        const data = deepClone(clipboard.data);
+        // Create a new node with a new id and offset position
+        const nodeTypeConfig = nodeTypes[data.type];
+        if (!nodeTypeConfig) return false;
+
+        const newNode = new Node(
+          data.type,
+          null,
+          (data.x || 100) + pasteOffsetStep * (currentPasteOffset + 1),
+          (data.y || 100) + pasteOffsetStep * (currentPasteOffset + 1),
+          data.title || nodeTypeConfig.title,
+          data.icon || nodeTypeConfig.icon,
+          // Inputs/outputs from copied data (already merged in runtime)
+          deepClone(data.inputs || nodeTypeConfig.inputs || []),
+          deepClone(data.outputs || nodeTypeConfig.outputs || [])
+        );
+
+        nodes.push(newNode);
+        if (container) container.appendChild(newNode.render());
+        updateSelectionVisuals(newNode, null);
+        renderEdges();
+        notifyChange();
+
+        currentPasteOffset += 1;
+        return true;
+      }
+
+      if (clipboard.type === 'edge') {
+        // Only paste edge if both endpoints still exist and target input is free
+        const { sourceNodeId, sourceConnectorId, targetNodeId, targetConnectorId } = clipboard.data;
+        const sourceExists = nodes.some(n => n.id === sourceNodeId);
+        const targetExists = nodes.some(n => n.id === targetNodeId);
+        if (!sourceExists || !targetExists) return false;
+
+        const existingEdge = edges.find(e => e.targetNodeId === targetNodeId && e.targetConnectorId === targetConnectorId);
+        if (existingEdge) return false; // keep single incoming rule
+
+        const newEdge = new Edge(sourceNodeId, sourceConnectorId, targetNodeId, targetConnectorId);
+        edges.push(newEdge);
+        updateSelectionVisuals(null, newEdge);
+        renderEdges();
+        notifyChange();
+        return true;
+      }
+      return false;
+    },
+
+    deleteSelected: function () {
+      return deleteSelectedInternal();
+    },
+
+    // Stubs to prevent toolbar errors; can be implemented later
+    undo: function () { /* no-op for now */ },
+    redo: function () { /* no-op for now */ },
+    zoomIn: function () { /* no-op for now */ },
+    zoomOut: function () { /* no-op for now */ },
+    fitToView: function () { /* no-op for now */ },
 
     loadFromJSON: function (json) {
       try {
