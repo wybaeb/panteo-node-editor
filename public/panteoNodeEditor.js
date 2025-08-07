@@ -431,6 +431,7 @@ const panteoNodeEditor = (function () {
 
     const elements = document.elementsFromPoint(clientX, clientY);
     console.log(`  > Elements at point:`, elements);
+    // 1) Try exact hit on the small connector point
     for (let i = 0; i < elements.length; i++) {
       const el = elements[i];
       if (el.classList.contains('panteo-connector-point')) {
@@ -445,6 +446,26 @@ const panteoNodeEditor = (function () {
           return { nodeId, connectorId, type };
         } else {
           console.log(`    * Connector node ${nodeId} not found in current nodes list.`);
+        }
+      }
+    }
+
+    // 2) Fallback: if user releases on the connector row, treat it as hitting the point
+    for (let i = 0; i < elements.length; i++) {
+      const el = elements[i];
+      if (el.classList.contains('panteo-connector')) {
+        const point = el.querySelector('.panteo-connector-point');
+        if (point) {
+          const nodeId = point.dataset.nodeId;
+          const connectorId = point.dataset.connectorId;
+          const type = point.dataset.connectorType;
+          console.log(`    * Using connector row hit; resolved to point:`, point, `NodeID: ${nodeId}, ConnID: ${connectorId}, Type: ${type}`);
+
+          const node = nodes.find(n => n.id === nodeId);
+          if (node) {
+            console.log(`  > Confirmed connector from row: Node ${nodeId}, Connector ${connectorId} (${type})`);
+            return { nodeId, connectorId, type };
+          }
         }
       }
     }
@@ -1072,19 +1093,14 @@ const panteoNodeEditor = (function () {
         // Стандартное создание ребра
         if (targetConnector && targetConnector.type === 'input' && targetConnector.nodeId !== tempEdge.sourceNodeId) {
           console.log(`    * Target connector found:`, targetConnector);
-          // Check if target connector is already connected
+          // Разрешаем несколько исходящих рёбер с одного выходного коннектора,
+          // но по-прежнему запрещаем более одного входящего ребра на один входной коннектор
           const existingEdge = edges.find(edge =>
             edge.targetNodeId === targetConnector.nodeId &&
             edge.targetConnectorId === targetConnector.connectorId
           );
 
-          // Check if source connector is already connected (assuming one output connection)
-          const existingSourceEdge = edges.find(edge =>
-            edge.sourceNodeId === tempEdge.sourceNodeId &&
-            edge.sourceConnectorId === tempEdge.sourceConnectorId
-          );
-
-          if (!existingEdge && !existingSourceEdge) { // Only connect if target input and source output are free
+          if (!existingEdge) { // Connect only if target input is free
             console.log(`    * Creating new edge.`);
             const newEdge = new Edge(
               tempEdge.sourceNodeId,
@@ -1095,7 +1111,7 @@ const panteoNodeEditor = (function () {
             edges.push(newEdge);
             notifyChange();
           } else {
-            console.log(`    * Edge creation aborted (connector busy). Existing Target: ${!!existingEdge}, Existing Source: ${!!existingSourceEdge}`);
+            console.log(`    * Edge creation aborted (target input busy).`);
           }
         } else {
           console.log(`    * No valid target connector found.`);
