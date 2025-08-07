@@ -411,6 +411,17 @@ const panteoNodeEditor = (function () {
     return pos;
   }
 
+  function isEditableElement(el) {
+    if (!el) return false;
+    const editableTags = ['INPUT', 'TEXTAREA', 'SELECT'];
+    if (editableTags.includes(el.tagName)) return true;
+    if (el.isContentEditable) return true;
+    // Inside connector controls or modal content
+    if (el.closest('.panteo-connector-control')) return true;
+    if (el.closest('.panteo-modal')) return true;
+    return false;
+  }
+
   function deepClone(value) {
     return JSON.parse(JSON.stringify(value));
   }
@@ -1113,6 +1124,10 @@ const panteoNodeEditor = (function () {
       console.log(" > Click originated on palette, ignoring for node/edge.");
       return;
     }
+    // Ignore mouse down on editable controls (don't start drags or selection)
+    if (isEditableElement(e.target)) {
+      return;
+    }
     if (!container || e.button !== 0) {
       console.log(`  > Aborted (no container or not left button)`);
       return;
@@ -1363,6 +1378,11 @@ const panteoNodeEditor = (function () {
 
   function handleKeyDown(e) {
     console.log(`--- Key Down: ${e.key} ---`);
+
+    // Do not handle hotkeys when user is typing in inputs/modals
+    if (isEditableElement(document.activeElement)) {
+      return; // let the control handle keys like Backspace, Cmd+Z, etc.
+    }
 
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const meta = isMac ? e.metaKey : e.ctrlKey;
