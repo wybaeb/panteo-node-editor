@@ -444,8 +444,10 @@ const panteoNodeEditor = (function () {
     history.push(snapshot);
     if (history.length > maxHistory) {
       history.shift();
+      // Ensure index stays at last element after shift
+      historyIndex = history.length - 1;
     } else {
-      historyIndex++;
+      historyIndex = history.length - 1;
     }
   }
 
@@ -504,7 +506,9 @@ const panteoNodeEditor = (function () {
     });
 
     nodes = createdNodes;
-    if (container) {
+    if (contentLayer) {
+      nodes.forEach(n => contentLayer.appendChild(n.render()));
+    } else if (container) {
       nodes.forEach(n => container.appendChild(n.render()));
     }
 
@@ -524,7 +528,10 @@ const panteoNodeEditor = (function () {
       data.targetConnectorId
     ));
 
-    if (ctx) renderEdges();
+    if (ctx) {
+      // Defer render to ensure DOM/layout settled before drawing edges
+      requestAnimationFrame(() => renderEdges());
+    }
   }
 
   function cloneNodeToData(node) {
@@ -640,6 +647,7 @@ const panteoNodeEditor = (function () {
   }
 
   function performUndo() {
+    if (history.length === 0) return false;
     if (historyIndex <= 0) return false;
     isRestoring = true;
     historyIndex -= 1;
@@ -650,6 +658,7 @@ const panteoNodeEditor = (function () {
   }
 
   function performRedo() {
+    if (history.length === 0) return false;
     if (historyIndex >= history.length - 1) return false;
     isRestoring = true;
     historyIndex += 1;
@@ -1616,11 +1625,13 @@ const panteoNodeEditor = (function () {
         }
       });
 
-      // Initialize history with initial empty state
-      isRestoring = true;
-      history = [deepClone(getEditorState())];
-      historyIndex = 0;
-      isRestoring = false;
+      // History will be seeded either here (empty) or by loadFromJSON if data provided later
+      if (history.length === 0) {
+        isRestoring = true;
+        history = [deepClone(getEditorState())];
+        historyIndex = 0;
+        isRestoring = false;
+      }
 
       // Defer first render to next frame to avoid initial offset under zoom
       requestAnimationFrame(() => renderEdges());
@@ -1777,9 +1788,14 @@ const panteoNodeEditor = (function () {
     loadFromJSON: function (json) {
       try {
         const data = typeof json === 'string' ? JSON.parse(json) : json;
-
+        // Seed editor with provided data without polluting undo history
+        isRestoring = true;
         this.setNodes(data.nodes || []);
         this.setEdges(data.edges || []);
+        // Reset history baseline to the loaded state so first Undo doesn't wipe everything
+        history = [deepClone(getEditorState())];
+        historyIndex = 0;
+        isRestoring = false;
 
         return this;
       } catch (error) {
