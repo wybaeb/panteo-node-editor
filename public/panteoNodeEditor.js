@@ -22,6 +22,11 @@ const panteoNodeEditor = (function () {
   let clipboard = null; // Simple clipboard for copy/paste
   let pasteOffsetStep = 20;
   let currentPasteOffset = 0;
+  let history = [];
+  let historyIndex = -1;
+  const maxHistory = 100;
+  let historyDebounceTimer = null;
+  let isRestoring = false;
 
   // Added for palette dragging
   let isDraggingPalette = false;
@@ -408,6 +413,100 @@ const panteoNodeEditor = (function () {
 
   function deepClone(value) {
     return JSON.parse(JSON.stringify(value));
+  }
+
+  function pushHistoryNow() {
+    if (isRestoring) return;
+    const state = getEditorState();
+    const snapshot = deepClone(state);
+    // Truncate future states if any
+    if (historyIndex < history.length - 1) {
+      history = history.slice(0, historyIndex + 1);
+    }
+    history.push(snapshot);
+    if (history.length > maxHistory) {
+      history.shift();
+    } else {
+      historyIndex++;
+    }
+  }
+
+  function scheduleHistoryPush(delay = 150) {
+    if (isRestoring) return;
+    if (historyDebounceTimer) clearTimeout(historyDebounceTimer);
+    historyDebounceTimer = setTimeout(() => {
+      pushHistoryNow();
+    }, delay);
+  }
+
+  function applyEditorState(state) {
+    // Clear existing nodes visuals and state
+    nodes.forEach(node => {
+      if (node.element && node.element.parentNode) {
+        node.element.parentNode.removeChild(node.element);
+      }
+    });
+    nodes = [];
+    edges = [];
+    updateSelectionVisuals(null, null);
+
+    const createdNodes = [];
+    (state.nodes || []).forEach(data => {
+      const nodeTypeConfig = nodeTypes[data.type] || {};
+
+      // Merge saved inputs with config inputs to preserve values
+      const mergedInputs = (data.inputs || []).map(savedInput => {
+        const configInput = (nodeTypeConfig.inputs || []).find(i => i.id === savedInput.id) || {};
+        const mergedInput = { ...configInput, ...savedInput };
+        if ((mergedInput.type === 'modal' || configInput.modal_fields) && !mergedInput.control) {
+          mergedInput.control = { type: 'modal' };
+        }
+        if (savedInput.control) {
+          mergedInput.control = { ...configInput.control, ...savedInput.control };
+        } else if (configInput.control) {
+          mergedInput.control = { ...configInput.control };
+        }
+        if (savedInput.value && mergedInput.control && !mergedInput.control.value) {
+          mergedInput.control.value = savedInput.value;
+        }
+        return mergedInput;
+      });
+
+      const node = new Node(
+        data.type,
+        data.id,
+        data.x,
+        data.y,
+        data.title || nodeTypeConfig.title,
+        data.icon || nodeTypeConfig.icon,
+        mergedInputs,
+        data.outputs || nodeTypeConfig.outputs
+      );
+      createdNodes.push(node);
+    });
+
+    nodes = createdNodes;
+    if (container) {
+      nodes.forEach(n => container.appendChild(n.render()));
+    }
+
+    // Update canvas size
+    if (canvas && container) {
+      const { width, height } = calculateRequiredCanvasSize();
+      canvas.width = width;
+      canvas.height = height;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+    }
+
+    edges = (state.edges || []).map(data => new Edge(
+      data.sourceNodeId,
+      data.sourceConnectorId,
+      data.targetNodeId,
+      data.targetConnectorId
+    ));
+
+    if (ctx) renderEdges();
   }
 
   function cloneNodeToData(node) {
@@ -829,6 +928,7 @@ const panteoNodeEditor = (function () {
       // Debounce or throttle this if it causes performance issues
       onChange(getEditorState());
     }
+    scheduleHistoryPush();
   }
 
   function getEditorState() {
@@ -1364,6 +1464,12 @@ const panteoNodeEditor = (function () {
         }
       });
 
+      // Initialize history with initial empty state
+      isRestoring = true;
+      history = [deepClone(getEditorState())];
+      historyIndex = 0;
+      isRestoring = false;
+
       return this; // Return the public API
     },
 
@@ -1556,9 +1662,25 @@ const panteoNodeEditor = (function () {
       return deleteSelectedInternal();
     },
 
-    // Stubs to prevent toolbar errors; can be implemented later
-    undo: function () { /* no-op for now */ },
-    redo: function () { /* no-op for now */ },
+    // Undo/Redo
+    undo: function () {
+      if (historyIndex <= 0) return false;
+      isRestoring = true;
+      historyIndex -= 1;
+      const state = deepClone(history[historyIndex]);
+      applyEditorState(state);
+      isRestoring = false;
+      return true;
+    },
+    redo: function () {
+      if (historyIndex >= history.length - 1) return false;
+      isRestoring = true;
+      historyIndex += 1;
+      const state = deepClone(history[historyIndex]);
+      applyEditorState(state);
+      isRestoring = false;
+      return true;
+    },
     zoomIn: function () { /* no-op for now */ },
     zoomOut: function () { /* no-op for now */ },
     fitToView: function () { /* no-op for now */ },
