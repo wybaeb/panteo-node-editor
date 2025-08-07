@@ -330,6 +330,13 @@ const panteoNodeEditor = (function () {
       return nodeEl;
     }
 
+    updateSizeFromElement() {
+      if (!this.element) return;
+      // Measure actual rendered size including connectors/content
+      this.width = this.element.offsetWidth || this.width;
+      this.height = this.element.offsetHeight || this.height;
+    }
+
     getConnectorPosition(connectorId, type) {
       if (!this.element) return null;
       console.log(`Getting position for connector ${connectorId} (${type}) on node ${this.id}`);
@@ -507,18 +514,22 @@ const panteoNodeEditor = (function () {
 
     nodes = createdNodes;
     if (contentLayer) {
-      nodes.forEach(n => contentLayer.appendChild(n.render()));
+      nodes.forEach(n => {
+        const el = n.render();
+        contentLayer.appendChild(el);
+        n.updateSizeFromElement();
+      });
     } else if (container) {
-      nodes.forEach(n => container.appendChild(n.render()));
+      nodes.forEach(n => {
+        const el = n.render();
+        container.appendChild(el);
+        n.updateSizeFromElement();
+      });
     }
 
-    // Update canvas size
+    // Update canvas and layer size
     if (canvas && container) {
-      const { width, height } = calculateRequiredCanvasSize();
-      canvas.width = width;
-      canvas.height = height;
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
+      updateStageSize();
     }
 
     edges = (state.edges || []).map(data => new Edge(
@@ -619,10 +630,15 @@ const panteoNodeEditor = (function () {
       );
       nodes.push(newNode);
       if (contentLayer) {
-        contentLayer.appendChild(newNode.render());
+        const el = newNode.render();
+        contentLayer.appendChild(el);
+        newNode.updateSizeFromElement();
       } else if (container) {
-        container.appendChild(newNode.render());
+        const el = newNode.render();
+        container.appendChild(el);
+        newNode.updateSizeFromElement();
       }
+      updateStageSize();
       updateSelectionVisuals(newNode, null);
       renderEdges();
       notifyChange();
@@ -1140,6 +1156,26 @@ const panteoNodeEditor = (function () {
     };
   }
 
+  // Keep canvas and contentLayer sized to content so #workflow-editor can scroll to reveal all nodes
+  function updateStageSize() {
+    if (!canvas || !container || !contentLayer) return;
+    const { width, height } = calculateRequiredCanvasSize();
+    // Provide generous extra scroll space equal to the current viewport
+    const viewportW = container.clientWidth || container.offsetWidth;
+    const viewportH = container.clientHeight || container.offsetHeight;
+    const totalW = Math.ceil(width + viewportW);
+    const totalH = Math.ceil(height + viewportH);
+
+    // Canvas pixel size and CSS size
+    canvas.width = totalW;
+    canvas.height = totalH;
+    canvas.style.width = `${totalW}px`;
+    canvas.style.height = `${totalH}px`;
+    // Content layer size defines scrollable area (transform doesn't affect layout)
+    contentLayer.style.width = `${totalW}px`;
+    contentLayer.style.height = `${totalH}px`;
+  }
+
   // Event handlers
   function handleMouseDown(e) {
     console.log(`--- Mouse Down ---`);
@@ -1288,11 +1324,7 @@ const panteoNodeEditor = (function () {
 
       // Update canvas size based on actual content
       if (canvas) {
-        const { width, height } = calculateRequiredCanvasSize();
-        canvas.width = width;
-        canvas.height = height;
-        canvas.style.width = `${width}px`;
-        canvas.style.height = `${height}px`;
+        updateStageSize();
       }
 
       renderEdges();
@@ -1557,6 +1589,7 @@ const panteoNodeEditor = (function () {
       contentLayer.style.left = '0';
       contentLayer.style.top = '0';
       contentLayer.style.transformOrigin = '0 0';
+      // Size is controlled dynamically to enable scrolling beyond viewport
       contentLayer.style.width = '100%';
       contentLayer.style.height = '100%';
       container.appendChild(contentLayer);
@@ -1565,7 +1598,7 @@ const panteoNodeEditor = (function () {
       canvas = document.createElement('canvas');
       canvas.className = 'panteo-canvas';
 
-      // Set initial canvas size to container size
+      // Set initial canvas size to container size, then adjust by content
       canvas.width = container.scrollWidth || container.offsetWidth;
       canvas.height = container.scrollHeight || container.offsetHeight;
       canvas.style.width = `${canvas.width}px`;
@@ -1595,6 +1628,8 @@ const panteoNodeEditor = (function () {
               nodes.push(node);
               const nodeElement = node.render(); // Get the rendered element
               contentLayer.appendChild(nodeElement); // Append into zoomable layer
+              node.updateSizeFromElement();
+              updateStageSize();
               console.log(` > Node element ${node.id} appended to container:`, nodeElement); // DEBUG: Verify append
               updateSelectionVisuals(node, null); // Select the new node
               notifyChange();
@@ -1614,11 +1649,7 @@ const panteoNodeEditor = (function () {
       // Update window resize handler
       window.addEventListener('resize', () => {
         if (canvas && container) {
-          const { width, height } = calculateRequiredCanvasSize();
-          canvas.width = width;
-          canvas.height = height;
-          canvas.style.width = `${width}px`;
-          canvas.style.height = `${height}px`;
+          updateStageSize();
           if (contentLayer) contentLayer.style.transform = `scale(${zoom})`;
           // Defer render to allow DOM/layout to settle under new size
           requestAnimationFrame(() => renderEdges());
@@ -1633,8 +1664,12 @@ const panteoNodeEditor = (function () {
         isRestoring = false;
       }
 
-      // Defer first render to next frame to avoid initial offset under zoom
-      requestAnimationFrame(() => renderEdges());
+      // Defer first render to next frame to ensure DOM measured, then size stage and render
+      requestAnimationFrame(() => {
+        nodes.forEach(n => n.updateSizeFromElement());
+        updateStageSize();
+        renderEdges();
+      });
       return this; // Return the public API
     },
 
@@ -1715,13 +1750,13 @@ const panteoNodeEditor = (function () {
         }
       });
 
-      // Update canvas size based on loaded nodes
+      // Update canvas and layer size based on loaded nodes
       if (canvas && container) {
-        const { width, height } = calculateRequiredCanvasSize();
-        canvas.width = width;
-        canvas.height = height;
-        canvas.style.width = `${width}px`;
-        canvas.style.height = `${height}px`;
+        // Ensure all node sizes are measured before sizing stage
+        requestAnimationFrame(() => {
+          nodes.forEach(n => n.updateSizeFromElement());
+          updateStageSize();
+        });
       }
 
       if (ctx) requestAnimationFrame(() => renderEdges());
@@ -1765,11 +1800,13 @@ const panteoNodeEditor = (function () {
     zoomIn: function () {
       zoom = Math.min(maxZoom, zoom * zoomFactor);
       if (contentLayer) contentLayer.style.transform = `scale(${zoom})`;
+      updateStageSize();
       requestAnimationFrame(() => renderEdges());
     },
     zoomOut: function () {
       zoom = Math.max(minZoom, zoom / zoomFactor);
       if (contentLayer) contentLayer.style.transform = `scale(${zoom})`;
+      updateStageSize();
       requestAnimationFrame(() => renderEdges());
     },
     fitToView: function () {
@@ -1782,6 +1819,7 @@ const panteoNodeEditor = (function () {
       const scaleY = viewH / Math.max(height, 1);
       zoom = Math.max(minZoom, Math.min(maxZoom, Math.min(scaleX, scaleY)));
       if (contentLayer) contentLayer.style.transform = `scale(${zoom})`;
+      updateStageSize();
       requestAnimationFrame(() => renderEdges());
     },
 
