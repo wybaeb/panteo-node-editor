@@ -877,10 +877,42 @@ const panteoNodeEditor = (function () {
     paletteEl.style.zIndex = '1100';
     paletteEl.style.pointerEvents = 'auto';
 
-    // Add Header for dragging
+    // Add Header (draggable area) with search toggle
     const header = document.createElement('div');
     header.className = 'panteo-palette-header';
-    header.textContent = 'Node Palette'; // Or use an icon
+    header.style.display = 'flex';
+    header.style.alignItems = 'center';
+    header.style.justifyContent = 'space-between';
+
+    const titleWrap = document.createElement('div');
+    titleWrap.className = 'panteo-palette-title';
+    titleWrap.innerHTML = `<span class="title-text">Node Palette</span>`;
+
+    const searchWrap = document.createElement('div');
+    searchWrap.className = 'panteo-palette-search';
+    searchWrap.style.display = 'flex';
+    searchWrap.style.alignItems = 'center';
+    searchWrap.style.gap = '6px';
+
+    const searchIcon = document.createElement('span');
+    searchIcon.className = 'material-icons search-icon';
+    searchIcon.textContent = 'search';
+    searchIcon.style.cursor = 'pointer';
+
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.className = 'search-input';
+    searchInput.placeholder = 'Search...';
+    searchInput.style.display = 'none';
+    searchInput.style.width = '160px';
+    searchInput.style.padding = '2px 6px';
+    searchInput.style.fontSize = '12px';
+
+    searchWrap.appendChild(searchIcon);
+    searchWrap.appendChild(searchInput);
+
+    header.appendChild(titleWrap);
+    header.appendChild(searchWrap);
     paletteEl.appendChild(header);
 
     // Add Dropdown or list container
@@ -897,6 +929,99 @@ const panteoNodeEditor = (function () {
       }
       categories[config.category].push({ type, config });
     }
+
+    // Collapsible categories + filtering support
+    let collapseSnapshot = null; // will store { categoryName: booleanCollapsed }
+
+    function snapshotCollapseState(root) {
+      const snap = {};
+      const sections = root.querySelectorAll('.panteo-palette-category');
+      sections.forEach(section => {
+        const name = section.querySelector('.panteo-palette-category-title .label')?.textContent || '';
+        const content = section.querySelector('.panteo-palette-category-content');
+        snap[name] = content && content.style.display === 'none';
+      });
+      return snap;
+    }
+
+    function applyCollapseSnapshot(root, snap) {
+      const sections = root.querySelectorAll('.panteo-palette-category');
+      sections.forEach(section => {
+        const name = section.querySelector('.panteo-palette-category-title .label')?.textContent || '';
+        const content = section.querySelector('.panteo-palette-category-content');
+        const caret = section.querySelector('.panteo-palette-category-title .caret');
+        const collapsed = !!snap[name];
+        if (content && caret) {
+          content.style.display = collapsed ? 'none' : 'block';
+          caret.textContent = collapsed ? '▸' : '▾';
+        }
+        section.style.display = 'block'; // make sure all visible when restoring
+      });
+    }
+
+    function filterPalette(query) {
+      const q = (query || '').toLowerCase().trim();
+      const sections = listContainer.querySelectorAll('.panteo-palette-category');
+      let anyVisible = false;
+      sections.forEach(section => {
+        const items = section.querySelectorAll('.panteo-palette-item');
+        let visibleCount = 0;
+        items.forEach(item => {
+          const label = item.querySelector('.panteo-palette-item-label')?.textContent.toLowerCase() || '';
+          const type = item.dataset.nodeType?.toLowerCase() || '';
+          const match = q === '' || label.includes(q) || type.includes(q);
+          item.style.display = match ? '' : 'none';
+          if (match) visibleCount++;
+        });
+        if (q === '') {
+          // Show all categories, items already reset above
+          section.style.display = 'block';
+        } else {
+          // Hide empty categories, expand non-empty to show results
+          const hasAny = visibleCount > 0;
+          section.style.display = hasAny ? 'block' : 'none';
+          if (hasAny) {
+            const content = section.querySelector('.panteo-palette-category-content');
+            const caret = section.querySelector('.panteo-palette-category-title .caret');
+            if (content && caret) { content.style.display = 'block'; caret.textContent = '▾'; }
+          }
+        }
+        anyVisible = anyVisible || section.style.display !== 'none';
+      });
+      return anyVisible;
+    }
+
+    function startSearch() {
+      if (!collapseSnapshot) collapseSnapshot = snapshotCollapseState(listContainer);
+      searchInput.style.display = 'block';
+      setTimeout(() => searchInput.focus(), 0);
+    }
+
+    function endSearch() {
+      searchInput.value = '';
+      filterPalette('');
+      if (collapseSnapshot) applyCollapseSnapshot(listContainer, collapseSnapshot);
+      collapseSnapshot = null;
+      searchInput.style.display = 'none';
+    }
+
+    searchIcon.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (searchInput.style.display === 'none') {
+        startSearch();
+      } else {
+        endSearch();
+      }
+    });
+
+    searchInput.addEventListener('input', () => {
+      filterPalette(searchInput.value);
+    });
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        endSearch();
+      }
+    });
 
     // Create category sections (collapsible)
     for (const categoryName in categories) {
