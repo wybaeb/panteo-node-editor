@@ -898,15 +898,23 @@ const panteoNodeEditor = (function () {
       categories[config.category].push({ type, config });
     }
 
-    // Create category sections
+    // Create category sections (collapsible)
     for (const categoryName in categories) {
       const categorySection = document.createElement('div');
       categorySection.className = 'panteo-palette-category';
 
       const categoryTitle = document.createElement('div');
       categoryTitle.className = 'panteo-palette-category-title';
-      categoryTitle.textContent = categoryName;
+      categoryTitle.style.cursor = 'pointer';
+      categoryTitle.innerHTML = `
+        <span class="caret" style="display:inline-block;width:1em;text-align:center;">▾</span>
+        <span class="label">${categoryName}</span>
+      `;
       categorySection.appendChild(categoryTitle);
+
+      // Body wrapper for items
+      const categoryContent = document.createElement('div');
+      categoryContent.className = 'panteo-palette-category-content';
 
       categories[categoryName].forEach(({ type, config }) => {
         const item = document.createElement('div');
@@ -916,8 +924,31 @@ const panteoNodeEditor = (function () {
                 <span class="material-icons panteo-palette-item-icon">${config.icon || 'settings'}</span>
                 <span class="panteo-palette-item-label">${config.title}</span>
             `;
-        categorySection.appendChild(item);
+        categoryContent.appendChild(item);
       });
+      categorySection.appendChild(categoryContent);
+
+      // Restore collapsed state from localStorage
+      const collapsedKey = `panteo_palette_collapsed_${categoryName}`;
+      let isCollapsed = false;
+      try { isCollapsed = localStorage.getItem(collapsedKey) === '1'; } catch (err) { /* ignore */ }
+
+      const updateCollapseVisual = () => {
+        const caret = categoryTitle.querySelector('.caret');
+        if (caret) caret.textContent = isCollapsed ? '▸' : '▾';
+        categoryContent.style.display = isCollapsed ? 'none' : 'block';
+      };
+
+      updateCollapseVisual();
+
+      categoryTitle.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        isCollapsed = !isCollapsed;
+        updateCollapseVisual();
+        try { localStorage.setItem(collapsedKey, isCollapsed ? '1' : '0'); } catch (err) { /* ignore */ }
+      });
+
       listContainer.appendChild(categorySection); // Append category to list container
     }
 
