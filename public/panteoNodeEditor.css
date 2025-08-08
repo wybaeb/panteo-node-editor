@@ -25,7 +25,7 @@
   height: 100%;
   min-height: 500px;
   background-color: var(--panteo-bg-color);
-  background-image: 
+  background-image:
     linear-gradient(var(--panteo-grid-color) 1px, transparent 1px),
     linear-gradient(90deg, var(--panteo-grid-color) 1px, transparent 1px);
   background-size: 20px 20px;
@@ -152,12 +152,14 @@
   line-height: 1.2;
   max-height: 2.4em;
   word-break: break-word;
-  max-width: 220px; /* Leave space for connector points and controls */
+  max-width: 220px;
+  /* Leave space for connector points and controls */
 }
 
 /* Single line alignment */
 .panteo-connector-label:not(:-webkit-box-orient) {
-  padding-top: 4px; /* Adjust for vertical centering of single line */
+  padding-top: 4px;
+  /* Adjust for vertical centering of single line */
 }
 
 /* For Firefox and other browsers */
@@ -278,6 +280,17 @@
 .panteo-palette-item-label {
   font-size: 0.9rem;
   color: var(--panteo-text-light);
+}
+
+/* Improve contrast on hover (light background) */
+.panteo-palette-item:hover .panteo-palette-item-label,
+.panteo-palette-item:focus-visible .panteo-palette-item-label {
+  color: var(--panteo-text-primary);
+}
+
+.panteo-palette-item:hover .panteo-palette-item-icon,
+.panteo-palette-item:focus-visible .panteo-palette-item-icon {
+  color: var(--panteo-text-primary);
 }
 
 .panteo-modal {
