@@ -185,6 +185,8 @@ const panteoNodeEditor = (function () {
                 notifyChange();
               });
               control.appendChild(ta);
+              // For textarea controls, stack label above control and use full width
+              connector.classList.add('panteo-connector--stack');
             } else if (normalizedType === 'dropdown') {
               const selectEl = document.createElement('select');
               (input.control.options || []).forEach(option => {
