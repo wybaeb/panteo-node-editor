@@ -896,6 +896,8 @@ const panteoNodeEditor = (function () {
     searchWrap.style.gap = '6px';
     searchWrap.style.flex = '1';
     searchWrap.style.minWidth = '0';
+    searchWrap.style.marginLeft = 'auto';
+    searchWrap.style.justifyContent = 'flex-end';
 
     const searchIcon = document.createElement('span');
     searchIcon.className = 'material-icons search-icon';
