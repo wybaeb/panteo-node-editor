@@ -39,6 +39,14 @@ const panteoNodeEditor = (function () {
   let isDraggingPalette = false;
   let paletteDragOffset = { x: 0, y: 0 };
 
+  // Minimal control type normalization
+  function normalizeControlType(type) {
+    const t = (type || '').toLowerCase();
+    if (t === 'string') return 'text';
+    if (t === 'select') return 'dropdown';
+    return t;
+  }
+
   // Node class definition
   class Node {
     constructor(type, id, x, y, title, icon, inputs, outputs) {
@@ -155,19 +163,29 @@ const panteoNodeEditor = (function () {
           if (input.control) {
             const control = document.createElement('div');
             control.className = 'panteo-connector-control';
+            const normalizedType = normalizeControlType(input.control.type);
 
-            if (input.control.type === 'text') {
+            if (normalizedType === 'text' || normalizedType === 'password' || normalizedType === 'number') {
               const inputEl = document.createElement('input');
-              inputEl.type = 'text';
+              inputEl.type = normalizedType === 'password' ? 'password' : (normalizedType === 'number' ? 'number' : 'text');
               inputEl.value = input.control.value || '';
               inputEl.placeholder = input.control.placeholder || '';
-              // Добавляем обработчик события для сохранения значения при вводе
               inputEl.addEventListener('input', (e) => {
                 input.control.value = e.target.value;
                 notifyChange();
               });
               control.appendChild(inputEl);
-            } else if (input.control.type === 'dropdown') {
+            } else if (normalizedType === 'textarea') {
+              const ta = document.createElement('textarea');
+              ta.value = input.control.value || '';
+              ta.placeholder = input.control.placeholder || '';
+              ta.rows = 3;
+              ta.addEventListener('input', (e) => {
+                input.control.value = e.target.value;
+                notifyChange();
+              });
+              control.appendChild(ta);
+            } else if (normalizedType === 'dropdown') {
               const selectEl = document.createElement('select');
               (input.control.options || []).forEach(option => {
                 const optionEl = document.createElement('option');
@@ -178,13 +196,12 @@ const panteoNodeEditor = (function () {
                 }
                 selectEl.appendChild(optionEl);
               });
-              // Добавляем обработчик события для сохранения выбранного значения
               selectEl.addEventListener('change', (e) => {
                 input.control.value = e.target.value;
                 notifyChange();
               });
               control.appendChild(selectEl);
-            } else if (input.control.type === 'modal') {
+            } else if (normalizedType === 'modal') {
               const buttonEl = document.createElement('button');
               buttonEl.innerHTML = '&hellip;';
               buttonEl.dataset.nodeId = this.id;
@@ -1163,28 +1180,29 @@ const panteoNodeEditor = (function () {
 
       // Add control
       let control;
-      if (field.type === 'string' || field.type === 'text' || field.type === 'password') {
+      const fieldType = normalizeControlType(field.type);
+      if (fieldType === 'text' || fieldType === 'password') {
         control = document.createElement('input');
-        control.type = field.type === 'password' ? 'password' : 'text';
+        control.type = fieldType === 'password' ? 'password' : 'text';
         control.className = 'panteo-form-control';
         control.name = field.name;
         control.value = field.value || '';
         control.placeholder = field.placeholder || '';
-      } else if (field.type === 'number') {
+      } else if (fieldType === 'number') {
         control = document.createElement('input');
         control.type = 'number';
         control.className = 'panteo-form-control';
         control.name = field.name;
         control.value = field.value || '';
         control.placeholder = field.placeholder || '';
-      } else if (field.type === 'textarea') {
+      } else if (fieldType === 'textarea') {
         control = document.createElement('textarea');
         control.className = 'panteo-form-control';
         control.name = field.name;
         control.value = field.value || '';
         control.placeholder = field.placeholder || '';
         control.rows = 4;
-      } else if (field.type === 'dropdown') {
+      } else if (fieldType === 'dropdown') {
         control = document.createElement('select');
         control.className = 'panteo-form-control';
         control.name = field.name;
