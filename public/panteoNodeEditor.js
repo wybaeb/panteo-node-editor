@@ -882,7 +882,8 @@ const panteoNodeEditor = (function () {
     header.className = 'panteo-palette-header';
     header.style.display = 'flex';
     header.style.alignItems = 'center';
-    header.style.justifyContent = 'space-between';
+    header.style.gap = '8px';
+    header.style.padding = '8px 10px';
 
     const titleWrap = document.createElement('div');
     titleWrap.className = 'panteo-palette-title';
@@ -893,6 +894,8 @@ const panteoNodeEditor = (function () {
     searchWrap.style.display = 'flex';
     searchWrap.style.alignItems = 'center';
     searchWrap.style.gap = '6px';
+    searchWrap.style.flex = '1';
+    searchWrap.style.minWidth = '0';
 
     const searchIcon = document.createElement('span');
     searchIcon.className = 'material-icons search-icon';
@@ -904,12 +907,19 @@ const panteoNodeEditor = (function () {
     searchInput.className = 'search-input';
     searchInput.placeholder = 'Search...';
     searchInput.style.display = 'none';
-    searchInput.style.width = '160px';
+    searchInput.style.flex = '1';
+    searchInput.style.minWidth = '0';
+    searchInput.style.width = '100%';
     searchInput.style.padding = '2px 6px';
-    searchInput.style.fontSize = '12px';
+    searchInput.style.fontSize = '13px';
+    searchInput.style.border = 'none';
+    searchInput.style.outline = 'none';
+    searchInput.style.background = 'transparent';
+    searchInput.style.boxShadow = 'none';
 
-    searchWrap.appendChild(searchIcon);
+    // Put input first so it never overflows to the right; icon stays on the far right
     searchWrap.appendChild(searchInput);
+    searchWrap.appendChild(searchIcon);
 
     header.appendChild(titleWrap);
     header.appendChild(searchWrap);
@@ -993,8 +1003,12 @@ const panteoNodeEditor = (function () {
 
     function startSearch() {
       if (!collapseSnapshot) collapseSnapshot = snapshotCollapseState(listContainer);
+      // Replace title with inline input
+      titleWrap.style.display = 'none';
       searchInput.style.display = 'block';
-      setTimeout(() => searchInput.focus(), 0);
+      searchInput.style.flex = '1';
+      searchInput.style.width = '100%';
+      setTimeout(() => { searchInput.focus(); searchInput.select(); }, 0);
     }
 
     function endSearch() {
@@ -1003,6 +1017,7 @@ const panteoNodeEditor = (function () {
       if (collapseSnapshot) applyCollapseSnapshot(listContainer, collapseSnapshot);
       collapseSnapshot = null;
       searchInput.style.display = 'none';
+      titleWrap.style.display = '';
     }
 
     searchIcon.addEventListener('click', (e) => {
@@ -1022,6 +1037,9 @@ const panteoNodeEditor = (function () {
         endSearch();
       }
     });
+    // prevent header drag when interacting with search UI
+    searchInput.addEventListener('mousedown', (e) => e.stopPropagation());
+    searchIcon.addEventListener('mousedown', (e) => e.stopPropagation());
 
     // Create category sections (collapsible)
     for (const categoryName in categories) {
