@@ -28,6 +28,8 @@ const panteoNodeEditor = (function () {
   let historyDebounceTimer = null;
   let isRestoring = false;
   let contentLayer = null; // Wrapper for nodes and canvas (palette stays outside)
+  let overlayLayer = null; // Non-zooming overlay for pinned UI (palette, floating buttons)
+  let overlayHost = null;   // Host element for overlay (parent of container), not scrolling with content
   let zoom = 1;
   const minZoom = 0.25;
   const maxZoom = 3;
@@ -868,6 +870,12 @@ const panteoNodeEditor = (function () {
     console.log("Creating palette...");
     const paletteEl = document.createElement('div');
     paletteEl.className = 'panteo-palette';
+    // Ensure palette is non-zooming, draggable overlay element
+    paletteEl.style.position = 'absolute';
+    paletteEl.style.left = '12px';
+    paletteEl.style.top = '12px';
+    paletteEl.style.zIndex = '1100';
+    paletteEl.style.pointerEvents = 'auto';
 
     // Add Header for dragging
     const header = document.createElement('div');
@@ -1517,13 +1525,17 @@ const panteoNodeEditor = (function () {
     console.log("--- Palette Mouse Down ---");
     isDraggingPalette = true;
     const rect = palette.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
-    const mousePos = getMousePosition(e); // Use our relative position function
+    const hostRect = (overlayHost || container).getBoundingClientRect();
+    // Use viewport-relative position within the editor viewport (ignore zoom)
+    const mousePos = {
+      x: e.clientX - hostRect.left,
+      y: e.clientY - hostRect.top
+    };
 
     // Calculate offset relative to the palette's top-left corner
     paletteDragOffset = {
-      x: mousePos.x - (rect.left - containerRect.left),
-      y: mousePos.y - (rect.top - containerRect.top)
+      x: mousePos.x - (rect.left - hostRect.left),
+      y: mousePos.y - (rect.top - hostRect.top)
     };
     console.log(`  > Palette Offset:`, paletteDragOffset);
 
@@ -1537,15 +1549,20 @@ const panteoNodeEditor = (function () {
   function handlePaletteMouseMove(e) {
     if (!isDraggingPalette) return;
 
-    const mousePos = getMousePosition(e);
+    // Use viewport-relative position within the editor viewport (ignore zoom)
+    const hostRect = (overlayHost || container).getBoundingClientRect();
+    const mousePos = {
+      x: e.clientX - hostRect.left,
+      y: e.clientY - hostRect.top
+    };
     let newX = mousePos.x - paletteDragOffset.x;
     let newY = mousePos.y - paletteDragOffset.y;
 
     // Basic boundary check (keep palette within container)
     const paletteWidth = palette.offsetWidth;
     const paletteHeight = palette.offsetHeight;
-    const containerWidth = container.offsetWidth;
-    const containerHeight = container.offsetHeight;
+    const containerWidth = (overlayHost || container).clientWidth;
+    const containerHeight = (overlayHost || container).clientHeight;
 
     newX = Math.max(0, Math.min(containerWidth - paletteWidth, newX));
     newY = Math.max(0, Math.min(containerHeight - paletteHeight, newY));
@@ -1594,6 +1611,23 @@ const panteoNodeEditor = (function () {
       contentLayer.style.height = '100%';
       container.appendChild(contentLayer);
 
+      // Create overlay layer above content to host non-zooming UI (palette, floating controls)
+      overlayLayer = document.createElement('div');
+      overlayLayer.className = 'panteo-overlay-layer';
+      overlayLayer.style.position = 'absolute';
+      overlayLayer.style.left = '0';
+      overlayLayer.style.top = '0';
+      overlayLayer.style.width = '100%';
+      overlayLayer.style.height = '100%';
+      overlayLayer.style.pointerEvents = 'none'; // let clicks pass unless child enables
+      overlayLayer.style.zIndex = '1050';
+      // Host overlay on the non-scrolling parent (.editor-body), so it won't scroll with content
+      overlayHost = container.parentElement || container;
+      if (getComputedStyle(overlayHost).position === 'static') {
+        overlayHost.style.position = 'relative';
+      }
+      overlayHost.appendChild(overlayLayer);
+
       // Create canvas for edges inside content layer
       canvas = document.createElement('canvas');
       canvas.className = 'panteo-canvas';
@@ -1610,7 +1644,9 @@ const panteoNodeEditor = (function () {
       // Create palette (ensure it's added to the DOM correctly)
       palette = createPalette();
       if (palette) {
-        container.appendChild(palette);
+        // Prefer overlay layer so palette doesn't scroll or zoom
+        const host = overlayLayer || container;
+        host.appendChild(palette);
         // Add palette item click handlers (ensure nodeTypes is populated before this)
         const paletteItems = palette.querySelectorAll('.panteo-palette-item');
         let newNodeOffset = 0; // Added to stagger nodes
